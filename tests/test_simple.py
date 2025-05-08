@@ -99,10 +99,11 @@ class TestSimple(TestCase):
         self.assertEqual(131393, pyasn.convert_asdot_to_32bit_asn("AS2.321"))
 
     def test_as_number_convert_fail(self):
-        self.assertRaises(ValueError, pyasn.convert_asdot_to_32bit_asn, "AS]2.321")
-        self.assertRaises(ValueError, pyasn.convert_asdot_to_32bit_asn, "AS2..321")
-        self.assertRaises(ValueError, pyasn.convert_asdot_to_32bit_asn, "AS2.")
-        self.assertRaises(ValueError, pyasn.convert_asdot_to_32bit_asn, "AS.098")
+        msg = "Invalid asdot format for input. input format must be something like AS<Number> or AS<Number>.<Number> "
+        self.assertRaisesRegex(ValueError, msg, pyasn.convert_asdot_to_32bit_asn, "AS]2.321")
+        self.assertRaisesRegex(ValueError, msg, pyasn.convert_asdot_to_32bit_asn, "AS2..321")
+        self.assertRaisesRegex(ValueError, msg, pyasn.convert_asdot_to_32bit_asn, "AS2.")
+        self.assertRaisesRegex(ValueError, msg, pyasn.convert_asdot_to_32bit_asn, "AS.098")
 
     def test_get_tud_prefixes(self):
         """
