@@ -29,7 +29,7 @@ from os import path
 from ipaddress import collapse_addresses, ip_network
 
 from ._version import __version__
-from .pyasn_radix import Radix
+import pytricia
 
 try:
     import ujson as json
@@ -58,23 +58,39 @@ class pyasn(object):
             Only used if ipasn_file is None.
             (The database is in the same format as ipasn_file.)
         """
-        self.radix = Radix()
+        self._records = pytricia.PyTricia()
         # we use functionality provided by the underlying RADIX class (implemented in C for speed)
         # actions such as add/delete node can be run on the radix tree if needed -- why its exposed
         self._ipasndb_file = ipasn_file
         self._asnames_file = as_names_file
-        if ipasn_file is not None and ipasn_file.endswith(".gz"):
-            # Support for compressed IPASN files added 2017-01-05
-            f = gzip.open(ipasn_file, 'rt')  # Py2.6 doesn't support 'with' for gzip
-            ipasn_str = f.read()
-            f.close()
-            # performance note: ipasn_str = subprocess.check_output(['gunzip', '-c', ip_asn_file])
-            # is faster, but less portable, hence our choice. we could do hybrid.
-            self._records = self.radix.load_ipasndb("", ipasn_str)
-        elif ipasn_file is not None:
-            self._records = self.radix.load_ipasndb(ipasn_file, "")
+        if ipasn_file is not None:
+            if ipasn_file.endswith(".gz"):
+                # Support for compressed IPASN files added 2017-01-05
+                with gzip.open(ipasn_file, 'rt') as f: # Py2.6 doesn't support 'with' for gzip
+                    for line in f:
+                        if line == '' or line == '\n':
+                            continue
+                        if  line[0] in ';#':
+                            continue
+                        p, a = line.split()
+                        self._records[p] = a
+            else:
+                with open(ipasn_file, 'r') as f:
+                    for line in f:
+                        if line == '' or line == '\n':
+                            continue
+                        if  line[0] in ';#':
+                            continue
+                        p, a = line.split()
+                        self._records[p] = a
         elif ipasn_string is not None:
-            self._records = self.radix.load_ipasndb("", ipasn_string)
+            for line in ipasn_string.split('\n'):
+                        if line == '' or line == '\n':
+                            continue
+                        if  line[0] in ';#':
+                            continue
+                        p, a = line.split()
+                        self._records[p] = a
         else:
             raise ValueError("No data given, all parameters are empty.")
         self._asnames = self._read_asnames() if as_names_file else None
@@ -129,20 +145,23 @@ class pyasn(object):
             'prefix' is the best matching prefix in the BGP table for the given IP address.\n
             Returns (None, None) if the IP address is not found (=not advertised, unreachable)
         """
-        rn = self.radix.search_best(ip_address)
-        return (rn.asn, rn.prefix) if rn else (None, None)
+        try:
+            asn = self._records[ip_address]
+            prefix = self._records.get_key(ip_address)
+            return asn, prefix
+        except KeyError:
+            return None, None
 
     def get_as_prefixes(self, asn):
         """ :return: All prefixes advertised by given ASN """
         if not self._as_prefixes:
+            # TODO: create cache during initialization
             # build full dictionary of {asn: set(prefixes)}, and cache it for subsequent calls
             self._as_prefixes = defaultdict(set)
-            for px in self.radix.prefixes():
-                ip, mask = px.split('/')  # fine with IPv4/IPv6
-                rn = self.radix.search_exact(ip, masklen=int(mask))
-                # we walk the radix-tree by going through all prefixes. it is very important to
-                # use 'search-exact' in the process, with the correct mask (to avoid bug #10)
-                self._as_prefixes[rn.asn].add(px)
+            for px in self._records.keys():
+                asn = self._records[px]
+                # walk the radix-tree by going through all prefixes.
+                self._as_prefixes[int(asn)].add(px)
         #
         return self._as_prefixes[int(asn)] if int(asn) in self._as_prefixes else None
 
@@ -202,25 +221,8 @@ class pyasn(object):
     # Persistence support, for use with pickle.dump(), pickle.load()
     # todo: add a test also for persistence support
     def __iter__(self):
-        for elt in self.radix:
+        for elt in self._records:
             yield elt
-
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d['radix']
-        s = ""
-        for elt in self:
-            s += "{}\t{}\n".format(elt.prefix, elt.asn)
-        d["ipasn_str"] = s
-        return d
-
-    def __setstate__(self, state):
-        ipasn_str = state['ipasn_str']
-        del state['ipasn_str']
-        self.__dict__.update(state)
-        self.radix = Radix()
-        records = self.radix.load_ipasndb("", ipasn_str)
-        assert records == self._records  # sanity
 
 
     @staticmethod
