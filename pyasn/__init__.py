@@ -17,11 +17,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from __future__ import print_function, division
 
 import codecs
 import gzip
-import pickle
 import re
 from collections import defaultdict
 from os import path
@@ -121,6 +119,7 @@ class pyasn(object):
                 names = json.loads(raw_data)
 
         elif self._asnames_file.endswith('.json'):
+            # TODO: see if should be cleaned up.  Default encoding should be utf-8 now in python 3+?
             with codecs.open(self._asnames_file, 'r', encoding='utf-8') as fs:
                 names = json.load(fs)
 
