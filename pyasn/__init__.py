@@ -55,38 +55,31 @@ class pyasn(object):
         # actions such as add/delete node can be run on the radix tree if needed -- why its exposed
         self._ipasndb_file = ipasn_file
         self._asnames_file = as_names_file
-        if ipasn_file is not None:
-            if ipasn_file.endswith(".gz"):
+        if self._ipasndb_file is not None:
+            if self._ipasndb_file.endswith(".gz"):
                 # Support for compressed IPASN files added 2017-01-05
-                with gzip.open(ipasn_file, 'rt') as f: # Py2.6 doesn't support 'with' for gzip
+                with gzip.open(self._ipasndb_file, 'rt') as f: # Py2.6 doesn't support 'with' for gzip
                     for line in f:
-                        if line == '' or line == '\n':
-                            continue
-                        if  line[0] in ';#':
-                            continue
-                        p, a = line.split()
-                        self._records[p] = a
+                        self._process_load_line(line)
             else:
-                with open(ipasn_file, 'r') as f:
+                with open(self._ipasndb_file, 'r') as f:
                     for line in f:
-                        if line == '' or line == '\n':
-                            continue
-                        if  line[0] in ';#':
-                            continue
-                        p, a = line.split()
-                        self._records[p] = a
+                        self._process_load_line(line)
         elif ipasn_string is not None:
             for line in ipasn_string.split('\n'):
-                        if line == '' or line == '\n':
-                            continue
-                        if  line[0] in ';#':
-                            continue
-                        p, a = line.split()
-                        self._records[p] = a
+                self._process_load_line(line)
         else:
             raise ValueError("No data given, all parameters are empty.")
         self._asnames = self._read_asnames() if as_names_file else None
         self._as_prefixes = None
+
+    def _process_load_line(self, line):
+        if line == '' or line == '\n':
+            return
+        if  line[0] in ';#':
+            return
+        p, a = line.split()
+        self._records[p] = a
 
     def _read_asnames(self):
         """
