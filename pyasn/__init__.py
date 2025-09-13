@@ -51,6 +51,7 @@ class pyasn(object):
             (The database is in the same format as ipasn_file.)
         """
         self._records = pytricia.PyTricia()
+        self._as_prefixes = defaultdict(set)
         self._ipasndb_file = ipasn_file
         self._asnames_file = as_names_file
         if self._ipasndb_file is not None:
@@ -69,15 +70,15 @@ class pyasn(object):
         else:
             raise ValueError("No data given, all parameters are empty.")
         self._asnames = self._read_asnames() if as_names_file else None
-        self._as_prefixes = None
 
     def _process_load_line(self, line):
         if line == '' or line == '\n':
             return
         if  line[0] in ';#':
             return
-        p, a = line.split()
-        self._records[p] = a
+        prefix, asn = line.split()
+        self._records[prefix] = asn
+        self._as_prefixes[int(asn)].add(prefix)
 
     def _read_asnames(self):
         """
@@ -139,14 +140,8 @@ class pyasn(object):
     def get_as_prefixes(self, asn):
         """ :return: All prefixes advertised by given ASN """
         if not self._as_prefixes:
-            # TODO: create cache during initialization
-            # build full dictionary of {asn: set(prefixes)}, and cache it for subsequent calls
-            self._as_prefixes = defaultdict(set)
-            for px in self._records.keys():
-                asn = self._records[px]
-                # walk the radix-tree by going through all prefixes.
-                self._as_prefixes[int(asn)].add(px)
-        #
+            raise AttributeError("No AS to prefix db loaded/found in IPAsn Object")
+
         return self._as_prefixes[int(asn)] if int(asn) in self._as_prefixes else None
 
     def get_as_prefixes_effective(self, asn):
@@ -199,7 +194,7 @@ class pyasn(object):
     def __repr__(self):
         ret = "pyasn(ipasndb:'%s'; asnames:'%s') - %d prefixes" % (self._ipasndb_file,
                                                                    self._asnames_file,
-                                                                   self._records)
+                                                                   len(self._records))
         return ret
 
     # Persistence support, for use with pickle.dump(), pickle.load()
