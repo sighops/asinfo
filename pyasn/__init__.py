@@ -51,14 +51,12 @@ class pyasn(object):
             (The database is in the same format as ipasn_file.)
         """
         self._records = pytricia.PyTricia()
-        # we use functionality provided by the underlying RADIX class (implemented in C for speed)
-        # actions such as add/delete node can be run on the radix tree if needed -- why its exposed
         self._ipasndb_file = ipasn_file
         self._asnames_file = as_names_file
         if self._ipasndb_file is not None:
             if self._ipasndb_file.endswith(".gz"):
                 # Support for compressed IPASN files added 2017-01-05
-                with gzip.open(self._ipasndb_file, 'rt') as f: # Py2.6 doesn't support 'with' for gzip
+                with gzip.open(self._ipasndb_file, 'rt') as f:
                     for line in f:
                         self._process_load_line(line)
             else:
