@@ -23,7 +23,6 @@
 # Script to download the latest routeview bgpdata, or for a certain period
 # Thanks to Vitaly Khamin (https://github.com/khamin) for the FTP code
 
-from __future__ import print_function, division
 from datetime import date, datetime
 from time import time
 from ftplib import FTP

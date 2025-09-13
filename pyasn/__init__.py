@@ -23,16 +23,10 @@ import gzip
 import re
 from collections import defaultdict
 from os import path
-
 from ipaddress import collapse_addresses, ip_network
-
 from ._version import __version__
 import pytricia
-
-try:
-    import ujson as json
-except ImportError:
-    import json
+import json
 
 
 class pyasn(object):

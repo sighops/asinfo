@@ -41,11 +41,7 @@ from time import time, asctime
 from sys import stderr, version_info, stdout
 from bz2 import BZ2File
 from gzip import GzipFile
-try:
-    from collections import OrderedDict
-except ImportError:
-    # python 2.6 support - needs the ordereddict module
-    from ordereddict import OrderedDict
+from collections import OrderedDict
 try:
     from socket import inet_ntop
 except ImportError:

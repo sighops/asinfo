@@ -25,11 +25,7 @@ import codecs
 import argparse
 import logging
 from sys import version_info
-
-try:
-    import ujson as json
-except ImportError:
-    import json
+import json
 
 if version_info[0] < 3:
     from urllib2 import urlopen

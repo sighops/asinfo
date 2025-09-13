@@ -24,7 +24,6 @@
 # file to use per day should be of the RouteViews or RIPE RIS series, e.g.:
 # http://archive.routeviews.org/bgpdata/2009.11/RIBS/rib.20091125.0600.bz2
 
-from __future__ import print_function, division
 from pyasn import mrtx, __version__
 from time import time
 from sys import argv, exit, stdout
