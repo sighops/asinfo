@@ -131,7 +131,7 @@ class pyasn(object):
         try:
             asn = self._records[ip_address]
             prefix = self._records.get_key(ip_address)
-            return asn, prefix
+            return int(asn), prefix
         except KeyError:
             return None, None
 

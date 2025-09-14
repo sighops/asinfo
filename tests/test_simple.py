@@ -24,7 +24,7 @@ import os
 import pickle
 from unittest import TestCase
 
-from pyasn import pyasn, pyasn_radix
+from pyasn import pyasn
 
 FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn.fake")
 IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn_20140513.dat.gz")
