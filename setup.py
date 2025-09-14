@@ -1,4 +1,3 @@
-import codecs
 import sys
 import platform
 import glob
@@ -7,18 +6,9 @@ from os.path import abspath, dirname, join
 
 here = abspath(dirname(__file__))
 
-with codecs.open(join(here, 'README.md'), encoding='utf-8') as f:
-    README = f.read() 
-
-libs = ['Ws2_32'] if platform.system() == "Windows" else []
-ext = Extension('pyasn.pyasn_radix',
-              sources=['pyasn/pyasn_radix.c', 'pyasn/_radix/radix.c'],
-              include_dirs=[join(here, 'pyasn')],
-              libraries=libs)
-
-extra_kwargs = {'ext_modules': [ext]}
+with open(join(here, 'README.md'), encoding='utf-8') as f:
+    README = f.read()
 reqs = []
-
 utils = glob.glob('pyasn-utils/*.py')
 
 __version__ = None
@@ -40,7 +30,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
     ],
     keywords='ip asn autonomous system bgp whois prefix radix python routing networking',
@@ -50,11 +39,7 @@ setup(
     setup_requires=[],
     packages=find_packages(exclude=['tests', 'tests.*']),
     zip_safe=False,
-    # 20230901 switch from nose to pytest for running the tests
-    # tests_require=['nose', 'coverage'],
-    # test_suite='nose.collector',
-    extras_require={'test': ['pytest'],},
-    **extra_kwargs
+    extras_require={'test': ['pytest'],}
 )
 
 
