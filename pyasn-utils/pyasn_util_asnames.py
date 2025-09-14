@@ -25,11 +25,7 @@ import argparse
 import logging
 from sys import version_info
 import json
-
-if version_info[0] < 3:
-    from urllib2 import urlopen
-else:
-    from urllib.request import urlopen
+from urllib.request import urlopen
 
 
 logger = logging.getLogger(__name__)

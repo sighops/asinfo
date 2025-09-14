@@ -33,10 +33,8 @@ try:
     from pyasn import __version__
 except:
     pass  # not fatal if we can't get version
-if version_info[0] < 3:
-    from urllib2 import urlopen
-else:
-    from urllib.request import urlopen
+
+from urllib.request import urlopen
 
 
 # Parse command line options
