@@ -26,18 +26,18 @@ import gzip
 from os import path
 import logging
 
-RIB_TD1_PARTDUMP = path.join(path.dirname(__file__), "../data/rib.20080501.0644_firstMB.bz2")
-RIB_TD2_PARTDUMP = path.join(path.dirname(__file__), "../data/rib.20140523.0600_firstMB.bz2")
-RIB6_TD2_PARTDUMP = path.join(path.dirname(__file__), "../data/rib6.20151101.0600_firstMB.bz2")
+RIB_TD1_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20080501.0644_firstMB.bz2")
+RIB_TD2_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20140523.0600_firstMB.bz2")
+RIB6_TD2_PARTDUMP = path.join(path.dirname(__file__), "data/rib6.20151101.0600_firstMB.bz2")
 RIB_TD2_RECORD_FAIL_PARTDUMP = path.join(path.dirname(__file__),
-                                         "../data/bview.20140112.1600_3samples.bz2")
-RIB_TD1_FULLDUMP = path.join(path.dirname(__file__), "../data/rib.20080501.0644.bz2")
-RIB_TD2_FULLDUMP = path.join(path.dirname(__file__), "../data/rib.20140513.0600.bz2")
-RIB_TD1_WIDE_FULLDUMP = path.join(path.dirname(__file__), "../data/rib_rvwide.20040701.0000.bz2")
-RIB_TD2_REPEATED_FAIL_FULLDUMP = path.join(path.dirname(__file__), "../data/rib.20170102.1400.bz2")
-RIB6_TD2_FULLDUMP = path.join(path.dirname(__file__), "../data/rib6.20151101.0600.bz2")
-IPASN_TD1_DB = path.join(path.dirname(__file__), "../data/ipasn_20080501_v12.dat.gz")
-IPASN_TD2_DB = path.join(path.dirname(__file__), "../data/ipasn_20140513_v12.dat.gz")
+                                         "data/bview.20140112.1600_3samples.bz2")
+RIB_TD1_FULLDUMP = path.join(path.dirname(__file__), "data/rib.20080501.0644.bz2")
+RIB_TD2_FULLDUMP = path.join(path.dirname(__file__), "data/rib.20140513.0600.bz2")
+RIB_TD1_WIDE_FULLDUMP = path.join(path.dirname(__file__), "data/rib_rvwide.20040701.0000.bz2")
+RIB_TD2_REPEATED_FAIL_FULLDUMP = path.join(path.dirname(__file__), "data/rib.20170102.1400.bz2")
+RIB6_TD2_FULLDUMP = path.join(path.dirname(__file__), "data/rib6.20151101.0600.bz2")
+IPASN_TD1_DB = path.join(path.dirname(__file__), "data/ipasn_20080501_v12.dat.gz")
+IPASN_TD2_DB = path.join(path.dirname(__file__), "data/ipasn_20140513_v12.dat.gz")
 TEMP_IPASNDAT = path.join(path.dirname(__file__), "ipasn_test.tmp")
 
 

@@ -29,10 +29,10 @@ from socket import inet_ntoa
 import logging
 from sys import stderr
 
-IPASN_DB_PATH = path.join(path.dirname(__file__), "../data/ipasn_20140513.dat.gz")
-STATIC_CYMRUWHOIS_PATH = path.join(path.dirname(__file__), "../data/cymru.map")
+IPASN_DB_PATH = path.join(path.dirname(__file__), "data/ipasn_20140513.dat.gz")
+STATIC_CYMRUWHOIS_PATH = path.join(path.dirname(__file__), "data/cymru.map")
 STATIC_PYASNv12_PATH = path.join(path.dirname(__file__),
-                                 "../data/pyasn_v1.2__ipasn_20140513__sample_10000.pickle.gz")
+                                 "data/pyasn_v1.2__ipasn_20140513__sample_10000.pickle.gz")
 logger = logging.getLogger()
 
 

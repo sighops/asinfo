@@ -26,11 +26,11 @@ from unittest import TestCase
 
 from pyasn import pyasn, pyasn_radix
 
-FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "../data/ipasn.fake")
-IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "../data/ipasn_20140513.dat.gz")
-IPASN6_DB_PATH = os.path.join(os.path.dirname(__file__), "../data/ipasn6_20151101.dat.gz")
-AS_NAMES_FILE_PATH = os.path.join(os.path.dirname(__file__), "../data/asnames.json")
-AS_NAMES_COMPRESSED_FILE_PATH = os.path.join(os.path.dirname(__file__), "../data/asnames.json.gz")
+FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn.fake")
+IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn_20140513.dat.gz")
+IPASN6_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn6_20151101.dat.gz")
+AS_NAMES_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json")
+AS_NAMES_COMPRESSED_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json.gz")
 logger = logging.getLogger()
 
 
