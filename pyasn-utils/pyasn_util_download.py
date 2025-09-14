@@ -28,7 +28,7 @@ from time import time
 from ftplib import FTP
 from argparse import ArgumentParser
 from subprocess import call
-from sys import argv, exit, stdout, version_info
+from sys import argv, exit, stdout
 try:
     from pyasn import __version__
 except:

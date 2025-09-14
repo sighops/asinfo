@@ -38,7 +38,7 @@ from __future__ import print_function, division
 from socket import inet_ntoa, inet_aton, AF_INET, AF_INET6
 from struct import unpack, pack
 from time import time, asctime
-from sys import stderr, version_info, stdout
+from sys import stderr, stdout
 from bz2 import BZ2File
 from gzip import GzipFile
 from collections import OrderedDict

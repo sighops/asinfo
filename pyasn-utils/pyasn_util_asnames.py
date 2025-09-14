@@ -23,7 +23,6 @@
 import re
 import argparse
 import logging
-from sys import version_info
 import json
 from urllib.request import urlopen
 
