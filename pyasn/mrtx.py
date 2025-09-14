@@ -204,12 +204,6 @@ def dump_prefixes_to_text_file(ipasn_data,
     # NAME changed, this is for compatibility with scripts, use dump_prefixes_to_file() instead.
     dump_prefixes_to_file(ipasn_data, out_text_file_name, orig_mrt_name, debug_write_sets)
 
-
-# dump_prefixes_to_binary_file():
-# DEPRECATED because our binary format lacked IPv6 support, and its loader wasn't fully tested.
-# In place, pyasn_util_convert has '--compress' now, and pyasn can load gzipped IPASN files.
-
-
 def is_asn_bogus(asn):
     """Returns True if the ASN is in the private-use or reserved list of ASNs"""
     # References:

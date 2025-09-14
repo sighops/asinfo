@@ -88,9 +88,9 @@ class pyasn(object):
         #           - gzip of above
         #           - "anydbm" or pickle (pickle gets a bit ugly with unicode)
         if self._asnames_file.endswith('.gz'):
-            f = gzip.open(self._asnames_file, 'rt')  # Py2.6 doesn't support 'with' for gzip
-            raw_data = f.read()
-            f.close()
+            with gzip.open(self._asnames_file, 'rt') as f:
+                raw_data = f.read()
+                f.close()
 
             asnames_file = self._asnames_file.strip('.gz')
             ftype = asnames_file.split('.')[-1]
@@ -195,8 +195,6 @@ class pyasn(object):
                                                                    len(self._records))
         return ret
 
-    # Persistence support, for use with pickle.dump(), pickle.load()
-    # todo: add a test also for persistence support
     def __iter__(self):
         for elt in self._records:
             yield elt

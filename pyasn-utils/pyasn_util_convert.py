@@ -86,7 +86,7 @@ if args.dump_screen:
 
 if args.bulk:
     try:
-        dt = datetime.strptime(args.bulk[0], '%Y-%m-%d').date()  # TODO:
+        dt = datetime.strptime(args.bulk[0], '%Y-%m-%d').date()
         dt_end = datetime.strptime(args.bulk[1], '%Y-%m-%d').date()
     except ValueError:
         print("ERROR: malformed date, try YYYY-MM-DD")
@@ -111,5 +111,4 @@ if args.bulk:
         if args.compress:
             call(['gzip', out_file])
         dt += timedelta(1)
-    #
     print('Finished!')
