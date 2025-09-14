@@ -48,9 +48,6 @@ except ImportError:
     # inet_ntop is only available on unix
     pass
 
-IS_PYTHON2 = (version_info[0] == 2)
-
-
 def open_archive(fpath):
     """Open a bz2 or gzip archive."""
     # Thanks to Chris poliquin for this method (https://github.com/poliquin)
@@ -186,10 +183,7 @@ def dump_prefixes_to_file(prefixes,
                           source_description="",
                           debug_write_sets=False
                           ):
-    if IS_PYTHON2:
-        fw = open(ipasn_file_name, 'wt')
-    else:
-        fw = open(ipasn_file_name, 'wt', encoding='ASCII')
+    fw = open(ipasn_file_name, 'wt', encoding='ASCII')
     fw.write('; IP-ASN32-DAT file\n; Original source: %s\n' % source_description)
     n6 = sum(1 for x in prefixes if ':' in x)
     n4 = len(prefixes) - n6
@@ -374,7 +368,7 @@ class MrtTD2Record:
 
             octets = (mask + 7) // 8
             max_octs = 16 if sub_type == MrtRecord.T2_RIB_IPV6 else 4
-            padding = bytes(max_octs - octets) if not IS_PYTHON2 else '\0'*(max_octs - octets)
+            padding = bytes(max_octs - octets)
             if sub_type == MrtRecord.T2_RIB_IPV4:
                 s = inet_ntoa(buf[5:5+octets] + padding)  # ntoa() faster than IPAddress class
             elif sub_type == MrtRecord.T2_RIB_IPV6:
@@ -456,15 +450,15 @@ class BgpAttribute:
         return ext_len
 
     def __init__(self, buf, is32):
-        self.flags = buf[0] if not IS_PYTHON2 else ord(buf[0])
-        self.bgp_type = buf[1] if not IS_PYTHON2 else ord(buf[1])
+        self.flags = buf[0]
+        self.bgp_type = buf[1]
         self._is32 = is32
         self._detail = None
         if self._has_ext_len():
             _len = unpack('>H', buf[2:4])[0]
             self.data = buf[4:4 + _len]
         else:
-            _len = buf[2] if not IS_PYTHON2 else ord(buf[2])
+            _len = buf[2]
             self.data = buf[3:3 + _len]
 
     def __len__(self):
@@ -584,8 +578,8 @@ class BgpAttribute:
             #  stats on 100,000: {1: 1196, 2: 3677845}.
 
             def __init__(self, data, is32):
-                self.seg_type = data[0] if not IS_PYTHON2 else ord(data[0])
-                cnt = data[1] if not IS_PYTHON2 else ord(data[1])
+                self.seg_type = data[0]
+                cnt = data[1]
                 data = data[2:]
                 assert self.seg_type in (self.AS_SET,
                                          self.AS_SEQUENCE,
