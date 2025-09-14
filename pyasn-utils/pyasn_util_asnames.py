@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 import re
-import codecs
 import argparse
 import logging
 from sys import version_info
@@ -62,7 +61,7 @@ def main(args):
     if args.input:
         logger.debug("using %s as html source" % args.input)
 
-        with codecs.open(args.input, encoding="utf-8") as fs:
+        with open(args.input, encoding="utf-8") as fs:
             data = fs.read()
 
     # data is not available yet? Let's download it!
@@ -72,7 +71,7 @@ def main(args):
 
         # only works if fetching from remote
         if args.persist_html:
-            with codecs.open(HTML_FILENAME, "w", encoding='utf-8') as fs:
+            with open(HTML_FILENAME, "w", encoding='utf-8') as fs:
                 fs.write(data)
 
     # parse it to json
@@ -81,7 +80,7 @@ def main(args):
 
     # output to file?
     if args.output:
-        with codecs.open(args.output, 'w', encoding="utf-8") as fs:
+        with open(args.output, 'w', encoding="utf-8") as fs:
             fs.write(data_json)
     else:
         # defaults to console
