@@ -25,7 +25,6 @@
 # http://archive.routeviews.org/bgpdata/2009.11/RIBS/rib.20091125.0600.bz2
 
 from pyasn import mrtx, __version__
-from time import time
 from sys import argv, exit, stdout
 from glob import glob
 from datetime import datetime, timedelta
