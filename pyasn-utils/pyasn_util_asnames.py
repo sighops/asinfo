@@ -110,9 +110,9 @@ def download_asnames():
     data = http.read()
     http.close()
 
-    raw_data = data.decode('latin-1')
-    raw_data = raw_data.encode('utf-8')
-    return raw_data.decode("utf-8")
+    # TODO: use another lib like requests or implement logic to detect encoding of the http response. The site uses
+    # latin-1 now but that may not always be true in the future.
+    return data.decode('latin-1')
 
 
 if __name__ == '__main__':
