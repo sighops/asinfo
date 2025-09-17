@@ -57,6 +57,7 @@ def get_latest_file_url():
     files = FILE_PAT.findall(data)
     filename = files[-1]
     file_url = archive_url + filename
+    return file_url
 
 def download_multiple(file):
     dates = []
