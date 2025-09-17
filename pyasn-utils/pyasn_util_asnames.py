@@ -81,12 +81,6 @@ def main(args):
         # defaults to console
         print(data_json)
 
-
-def __parse_asname_line(line):
-    match = EXTRACT_ASNAME_C.match(line)
-    return match.groups()
-
-
 def _html_to_dict(data):
     """
     Translates an HTML string available at `ASNAMES_URL` into a dict
@@ -96,10 +90,9 @@ def _html_to_dict(data):
     :return:
     :rtype: dict
     """
-    split = data.split("\n")
-    split = filter(lambda line: line.startswith("<a"), split)
-    fn = __parse_asname_line
-    return dict(map(fn, split))
+    match = EXTRACT_ASNAME_C.findall(data)
+    return dict(match)
+
 
 
 def download_asnames():
