@@ -216,10 +216,13 @@ def is_asn_bogus(asn):
     # Note that the full list of unallocated and bogus ASNs is long, and changes; we use the basic
     if asn <= 0:
         return True
-    if 64496 <= asn <= 131071 or asn >= 4200000000:   # reserved & private-use-AS
+    # 4200000000 - 4294967294(max 4 byte ASN) reserved for private use in rfc6996
+    if asn >= 4200000000:
         return True
-    if asn >= 1000000:  # way above last allocated block (2014-11-02) -- might change in future
+    # reserved & private-use-AS
+    if 64496 <= asn <= 131071:
         return True
+
     return False
 
 
