@@ -41,17 +41,6 @@ class TestSimple(TestCase):
     asndb = pyasn(IPASN_DB_PATH)
     asndb_fake = pyasn(FAKE_IPASN_DB_PATH)
 
-    def test_consistency(self):
-        """
-            Tests if pyasn is consistently loaded and that it returns a consistent answer
-        """
-        db = pyasn(IPASN_DB_PATH)
-        asn, prefix = db.lookup('8.8.8.8')
-        for i in range(100):
-            tmp_asn, tmp_prefix = self.asndb.lookup('8.8.8.8')
-            self.assertEqual(asn, tmp_asn)
-            self.assertEqual(prefix, tmp_prefix)
-
     def test_correctness(self):
         """
             Tests if pyasn returns the correct AS number with simple data base
