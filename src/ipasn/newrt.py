@@ -74,7 +74,7 @@ Parses an MRT/RIB BGP table dump file.\n
 The originating ASN is usually one; however, for some prefixes it can be a set.
 \n
 Both version 1 & 2 TABLE_DUMPS are supported, as well as 32bit ASNs and IPv6."""
-    prefixes, t0, n = {}, time(), 0
+
 
     if type(mrt_file) is str:
         # callee passed a string-path, open it. file will close when this method ends.
@@ -84,6 +84,7 @@ Both version 1 & 2 TABLE_DUMPS are supported, as well as 32bit ASNs and IPv6."""
     t_s = process_time()
     ts_ps = 0
     ts_go = 0
+    recs = []
     while True:
         ps_st = process_time()
         mrt = MrtRecord.next_dump_table_record(mrt_file)
@@ -92,7 +93,10 @@ Both version 1 & 2 TABLE_DUMPS are supported, as well as 32bit ASNs and IPv6."""
         if not mrt:
             # EOF
             break
-
+        recs.append(mrt)
+    print("Took %f seconds to process %d records" % ((process_time() - t_s), len(recs)))
+    prefixes, t0, n = {}, time(), 0
+    for mrt in recs:
         if not mrt.detail \
            or (mrt.type == mrt.TYPE_TABLE_DUMP_V2 and mrt.sub_type == MrtRecord.T2_PEER_INDEX):
             # not a prefix/as-path entry

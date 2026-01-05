@@ -9,7 +9,7 @@ here = abspath(dirname(__file__))
 with open(join(here, 'README.md'), encoding='utf-8') as f:
     README = f.read()
 reqs = []
-utils = glob.glob('pyasn-utils/*.py')
+utils = glob.glob('src/ipasn/pyasn-utils/*.py')
 
 __version__ = None
 exec(open('pyasn/_version.py').read())  # load the actual __version__

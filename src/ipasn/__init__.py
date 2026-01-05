@@ -27,12 +27,12 @@ import pytricia
 import json
 
 
-class ipasn(object):
+class IpAsn:
     """
     Class to do fast offline & historical Autonomous-System-Number lookups for IPv4/IPv6 addresses.
     """
 
-    def __init__(self, ipasn_file, as_names_file=None, ipasn_string=None):
+    def __init__(self, ipasn_file, as_names_file=None):
         """
         Creates a new instance of ipasn.\n
         :param ipasn_file:
@@ -43,72 +43,51 @@ class ipasn(object):
              prebuilt database from the ipasn homepage.)
         :param as_names_file:
             if given, loads autonomous system names from this file (warning: not fully tested)
-        :param ipasn_string:
-            String containing an IP-ASN database to load.
-            Only used if ipasn_file is None.
-            (The database is in the same format as ipasn_file.)
         """
-        self._records = pytricia.PyTricia()
-        self._as_prefixes = defaultdict(set)
-        self._ipasndb_file = ipasn_file
-        self._asnames_file = as_names_file
-        if self._ipasndb_file is not None:
-            if self._ipasndb_file.endswith(".gz"):
-                # Support for compressed IPASN files added 2017-01-05
-                with gzip.open(self._ipasndb_file, 'rt') as f:
+        self.records = pytricia.PyTricia()
+        self.ip_version = None
+        self.as_prefixes = defaultdict(set)
+        self.ipasndb_file = ipasn_file
+        self.asnames_file = as_names_file
+        self.asnames = None
+
+        if self.ipasndb_file is not None:
+            if self.ipasndb_file.endswith(".gz"):
+                with gzip.open(self.ipasndb_file, 'rt') as f:
                     for line in f:
-                        self._process_load_line(line)
+                        self.process_load_line(line)
             else:
-                with open(self._ipasndb_file, 'r') as f:
+                with open(self.ipasndb_file, 'r') as f:
                     for line in f:
-                        self._process_load_line(line)
-        elif ipasn_string is not None:
-            for line in ipasn_string.split('\n'):
-                self._process_load_line(line)
+                        self.process_load_line(line)
         else:
             raise ValueError("No data given, all parameters are empty.")
-        self._asnames = self._read_asnames() if as_names_file else None
+        self.asnames = self.read_asnames() if as_names_file else None
 
-    def _process_load_line(self, line):
+        # For supporting pickling of object.  This freezes the patricia tree for modification.
+        self.records.freeze()
+
+    def process_load_line(self, line):
         if line == '' or line == '\n':
             return
         if  line[0] in ';#':
             return
         prefix, asn = line.split()
-        self._records[prefix] = asn
-        self._as_prefixes[int(asn)].add(prefix)
+        self.records[prefix] = asn
+        self.as_prefixes[int(asn)].add(prefix)
 
-    def _read_asnames(self):
+    def read_asnames(self):
         """
         Reads autonomous system names (warning: this method is not fully tested)
         """
-        # todo: test a variety of formats for fastest performance in loading & disc size
-        #           - json or csv-file with ASN & AS-NAMES
-        #           - gzip of above
-        #           - "anydbm" or pickle (pickle gets a bit ugly with unicode)
-        if self._asnames_file.endswith('.gz'):
-            with gzip.open(self._asnames_file, 'rt') as f:
+        if self.asnames_file.endswith('.gz'):
+            with gzip.open(self.asnames_file, 'rt') as f:
                 raw_data = f.read()
-                f.close()
-
-            asnames_file = self._asnames_file.strip('.gz')
-            ftype = asnames_file.split('.')[-1]
-
-            if ftype not in ['json']:
-                # Easy to add + validate new extension-checks
-                raise ValueError("Invalid filetype under the commpressed as-names file: {}; must be:  "
-                              "['.json']")
-
-            if ftype == 'json':
-                names = json.loads(raw_data)
-
-        elif self._asnames_file.endswith('.json'):
-            with open(self._asnames_file, 'r', encoding='utf-8') as fs:
-                names = json.load(fs)
+            names = json.loads(raw_data)
 
         else:
-            ext = path.splitext(self._asnames_file)[-1]
-            raise NotImplementedError('Autonomous system names parser does not support %s format.' % ext)
+            with open(self.asnames_file, 'r', encoding='utf-8') as fs:
+                names = json.load(fs)
 
         try:
             formatted_names = dict([(int(k), v) for k, v in names.items()])
@@ -117,7 +96,19 @@ class ipasn(object):
 
         return formatted_names
 
-    def lookup(self, ip_address):
+    # TODO: determine if needed and improve if so.  Ideally, if v4 and v6 lookups are needed then an IpAsn object
+    #       would be used for each version.  This is recommended by pytricia for performance reasons.
+    def get_ip_version(self, ip):
+        if self.ip_version:
+            return self.ip_version
+
+        if ':' in ip:
+            self.ip_version = 'v6'
+        else:
+            self.ip_version =  'v4'
+        return self.ip_version
+
+    def lookup(self, ip):
         """
         Returns the as number and best matching prefix for given ip address.\n
         :param ip_address: String representation of ip address , for example "8.8.8.8".
@@ -127,19 +118,19 @@ class ipasn(object):
             'prefix' is the best matching prefix in the BGP table for the given IP address.\n
             Returns (None, None) if the IP address is not found (=not advertised, unreachable)
         """
+
+        # TODO: determine if needed, do something with it if so.  Might be good to enforce using one object per ip version for performance.
+        version = self.get_ip_version(ip)
         try:
-            asn = self._records[ip_address]
-            prefix = self._records.get_key(ip_address)
+            asn = self.records[ip]
+            prefix = self.records.get_key(ip)
             return int(asn), prefix
         except KeyError:
             return None, None
 
     def get_as_prefixes(self, asn):
         """ :return: All prefixes advertised by given ASN """
-        if not self._as_prefixes:
-            raise AttributeError("No AS to prefix db loaded/found in IPAsn Object")
-
-        return self._as_prefixes[int(asn)] if int(asn) in self._as_prefixes else None
+        return self.as_prefixes[int(asn)]
 
     def get_as_prefixes_effective(self, asn):
         """
@@ -147,12 +138,12 @@ class ipasn(object):
         :return: The effective prefixes resulting from removing overlaps of given ASN's prefixes
         """
         prefixes = self.get_as_prefixes(asn)
-        if not prefixes:  # issue 12
-            return None
-        non_overlapping_4 = collapse_addresses([ip_network(i) for i in prefixes if ':' not in i])
-        non_overlapping_6 = collapse_addresses([ip_network(i) for i in prefixes if ':' in i])
-        return [i.compressed for i in non_overlapping_4] + \
-               [i.compressed for i in non_overlapping_6]
+        if prefixes:
+            non_overlapping_4 = collapse_addresses([ip_network(i) for i in prefixes if ':' not in i])
+            non_overlapping_6 = collapse_addresses([ip_network(i) for i in prefixes if ':' in i])
+            return [i.compressed for i in non_overlapping_4] + \
+                   [i.compressed for i in non_overlapping_6]
+        return None
 
     def get_as_size(self, asn):
         """
@@ -161,10 +152,10 @@ class ipasn(object):
         :return: number of unique IPv4 addresses routed by AS
         """
         prefixes = self.get_as_prefixes_effective(asn)
-        if not prefixes:
-            return 0
-        size = sum([2 ** (32 - int(px.split('/')[1])) for px in prefixes if ':' not in px])
-        return size
+        if prefixes:
+            size = sum([2 ** (32 - int(px.split('/')[1])) for px in prefixes if ':' not in px])
+            return size
+        return 0
 
     def get_as_size_v6(self, asn):
         """
@@ -173,10 +164,10 @@ class ipasn(object):
         :return: number of unique IPv6 addresses routed by AS
         """
         prefixes = self.get_as_prefixes_effective(asn)
-        if not prefixes:
-            return 0
-        size = sum([2 ** (128 - int(px.split('/')[1])) for px in prefixes if ':' in px])
-        return size
+        if prefixes:
+            size = sum([2 ** (128 - int(px.split('/')[1])) for px in prefixes if ':' in px])
+            return size
+        return 0
 
     def get_as_name(self, asn):
         """
@@ -184,23 +175,20 @@ class ipasn(object):
         :param asn: 32-bit ASN
         :return: the AS-Name associated with this ASN
         """
-        if not self._asnames:
+        if not self.asnames:
             raise Exception("Autonomous system names not loaded during initialization")
-        return self._asnames.get(asn, None)
+        return self.asnames.get(asn, None)
 
     def __repr__(self):
-        ret = "ipasn(ipasndb:'%s'; asnames:'%s') - %d prefixes" % (self._ipasndb_file,
-                                                                   self._asnames_file,
-                                                                   len(self._records))
-        return ret
+        return "IpAsn(%s, '%s')" % (self.ipasndb_file, self.asnames_file)
 
     def __iter__(self):
-        for elt in self._records:
-            yield elt
+        for rec in self.records:
+            yield rec
 
 
     @staticmethod
-    def convert_32bit_to_asdot_asn_format(asn):  # FIXME: simplify to 'convert_32bit_asn_to_asdot'
+    def convert_32bit_to_asdot_asn_format(asn):
         """
         Converts a 32bit AS number into the ASDOT format AS[Number].[Number] - see rfc5396.\n
         :param asn: The number of an AS in numerical format.
