@@ -1,219 +1,172 @@
-# Copyright (c) 2014-2017 Hadi Asghari
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 import gzip
-import re
-from collections import defaultdict
-from os import path
-from ipaddress import collapse_addresses, ip_network
-import pytricia
 import json
+import re
+from ipaddress import collapse_addresses, ip_network
+
+import pytricia
+
+_ASDOT_PATTERN = re.compile(r"^AS(?P<high>\d+)(?:\.(?P<low>\d+))?\Z", re.IGNORECASE)
+_UINT16_MAX = 0xFFFF
+_UINT32_MAX = 0xFFFFFFFF
 
 
 class IpAsn:
-    """
-    Class to do fast offline & historical Autonomous-System-Number lookups for IPv4/IPv6 addresses.
-    """
+    """IPv4/IPv6 to ASN lookup table, built from a BGP MRT/RIB-derived IP-ASN database."""
 
-    def __init__(self, ipasn_file, as_names_file=None):
+    def __init__(self, ipasn_file=None, as_names_file=None, ipasn_string=None):
         """
-        Creates a new instance of ipasn.\n
-        :param ipasn_file:
-            Filename of the IP-ASN database to load
-            (The database can be a simple text file with lines of "NETWORK/BITS\tASN".
-             You can create database files from BGP MRT/RBI dumps using the ipasn-utils
-             scripts provided alongside the ipasn package. Alternatively, you can download
-             prebuilt database from the ipasn homepage.)
-        :param as_names_file:
-            if given, loads autonomous system names from this file (warning: not fully tested)
+        Loads an IP-ASN database and prepares it for lookups.
+
+        Provide exactly one data source: `ipasn_file` (a path to a database
+        file, optionally gzip-compressed) or `ipasn_string` (the database
+        contents already in memory). Format is a text file with lines of 
+        "NETWORK/BITS<tab>ASN".  See the ipasn-utils scripts for building one 
+        from a BGP MRT/RIB dump.
+
+        `as_names_file`, if given, additionally loads AS names (ASN -> name)
+        from a JSON file for use with get_as_name().
         """
         self.records = pytricia.PyTricia()
-        self.ip_version = None
-        self.as_prefixes = defaultdict(set)
+        self.as_prefixes = {}
         self.ipasndb_file = ipasn_file
         self.asnames_file = as_names_file
         self.asnames = None
 
-        if self.ipasndb_file is not None:
-            if self.ipasndb_file.endswith(".gz"):
-                with gzip.open(self.ipasndb_file, 'rt') as f:
-                    for line in f:
-                        self.process_load_line(line)
-            else:
-                with open(self.ipasndb_file, 'r') as f:
-                    for line in f:
-                        self.process_load_line(line)
+        if ipasn_file is not None:
+            opener = gzip.open if ipasn_file.endswith(".gz") else open
+            with opener(ipasn_file, "rt") as f:
+                for line in f:
+                    self.process_load_line(line)
+        elif ipasn_string is not None:
+            for line in ipasn_string.splitlines():
+                self.process_load_line(line)
         else:
-            raise ValueError("No data given, all parameters are empty.")
+            raise ValueError("No data given: pass either ipasn_file or ipasn_string.")
+
         self.asnames = self.read_asnames() if as_names_file else None
 
-        # For supporting pickling of object.  This freezes the patricia tree for modification.
+        # pytricia requires the trie be frozen against further modification
+        # before it can be pickled.
         self.records.freeze()
 
     def process_load_line(self, line):
-        if line == '' or line == '\n':
-            return
-        if  line[0] in ';#':
+        line = line.strip()
+        if not line or line[0] in ("#", ";"):
             return
         prefix, asn = line.split()
+        asn = int(asn)
         self.records[prefix] = asn
-        self.as_prefixes[int(asn)].add(prefix)
+        self.as_prefixes.setdefault(asn, set()).add(prefix)
 
     def read_asnames(self):
-        """
-        Reads autonomous system names (warning: this method is not fully tested)
-        """
-        if self.asnames_file.endswith('.gz'):
-            with gzip.open(self.asnames_file, 'rt') as f:
-                raw_data = f.read()
-            names = json.loads(raw_data)
-
+        """Loads {ASN: name} from `self.asnames_file` (JSON, optionally gzip-compressed)."""
+        if self.asnames_file.endswith(".gz"):
+            with gzip.open(self.asnames_file, "rt") as f:
+                names = json.load(f)
         else:
-            with open(self.asnames_file, 'r', encoding='utf-8') as fs:
-                names = json.load(fs)
+            with open(self.asnames_file, "r", encoding="utf-8") as f:
+                names = json.load(f)
 
         try:
-            formatted_names = dict([(int(k), v) for k, v in names.items()])
+            return {int(asn): name for asn, name in names.items()}
         except ValueError:
-            raise Exception("Autonomous system names file contains non-nummeric ASNs")
-
-        return formatted_names
-
-    # TODO: determine if needed and improve if so.  Ideally, if v4 and v6 lookups are needed then an IpAsn object
-    #       would be used for each version.  This is recommended by pytricia for performance reasons.
-    def get_ip_version(self, ip):
-        if self.ip_version:
-            return self.ip_version
-
-        if ':' in ip:
-            self.ip_version = 'v6'
-        else:
-            self.ip_version =  'v4'
-        return self.ip_version
+            raise ValueError("AS names file contains a non-numeric ASN") from None
 
     def lookup(self, ip):
         """
-        Returns the as number and best matching prefix for given ip address.\n
-        :param ip_address: String representation of ip address , for example "8.8.8.8".
-        :raises: ValueError if an invalid IP address is passed.
-        :return: (asn, prefix) of a given IP address.\n
-            'asn' is the 32-bit AS Number that holds this IP address, as advertised on BGP.\n
-            'prefix' is the best matching prefix in the BGP table for the given IP address.\n
-            Returns (None, None) if the IP address is not found (=not advertised, unreachable)
-        """
+        Returns the AS number and best-matching prefix for the given IP address.
 
-        # TODO: determine if needed, do something with it if so.  Might be good to enforce using one object per ip version for performance.
-        version = self.get_ip_version(ip)
+        :param ip: string representation of an IPv4 or IPv6 address, e.g. "8.8.8.8".
+        :raises ValueError: if `ip` isn't a valid IP address.
+        :return: (asn, prefix) - the 32-bit origin AS number and the best-matching
+            BGP prefix for `ip`, or (None, None) if `ip` isn't covered by any
+            prefix in this database.
+        """
         try:
             asn = self.records[ip]
             prefix = self.records.get_key(ip)
-            return int(asn), prefix
+            return asn, prefix
         except KeyError:
             return None, None
 
     def get_as_prefixes(self, asn):
-        """ :return: All prefixes advertised by given ASN """
-        return self.as_prefixes[int(asn)]
+        """Returns the set of prefixes originated by `asn` in this database,
+        or None if the ASN isn't present."""
+        return self.as_prefixes.get(int(asn))
 
     def get_as_prefixes_effective(self, asn):
         """
-        Returns the effective address space of given ASN by removing all overlaps among prefixes
-        :return: The effective prefixes resulting from removing overlaps of given ASN's prefixes
+        Returns the effective address space of the given ASN by removing all
+        overlaps among its prefixes, or None if the ASN isn't present.
         """
         prefixes = self.get_as_prefixes(asn)
-        if prefixes:
-            non_overlapping_4 = collapse_addresses([ip_network(i) for i in prefixes if ':' not in i])
-            non_overlapping_6 = collapse_addresses([ip_network(i) for i in prefixes if ':' in i])
-            return [i.compressed for i in non_overlapping_4] + \
-                   [i.compressed for i in non_overlapping_6]
-        return None
+        if not prefixes:
+            return None
+        non_overlapping_4 = collapse_addresses([ip_network(p) for p in prefixes if ":" not in p])
+        non_overlapping_6 = collapse_addresses([ip_network(p) for p in prefixes if ":" in p])
+        return [p.compressed for p in non_overlapping_4] + [p.compressed for p in non_overlapping_6]
+
+    def _get_as_size(self, asn, bits, is_v6):
+        prefixes = self.get_as_prefixes_effective(asn)
+        if not prefixes:
+            return 0
+        return sum(
+            2 ** (bits - int(prefix.split("/")[1]))
+            for prefix in prefixes
+            if (":" in prefix) == is_v6
+        )
 
     def get_as_size(self, asn):
-        """
-        Returns the size of an AS as the total count of IPv4 addresses that the AS is responsible for
-        :param asn: The autonomous system number
-        :return: number of unique IPv4 addresses routed by AS
-        """
-        prefixes = self.get_as_prefixes_effective(asn)
-        if prefixes:
-            size = sum([2 ** (32 - int(px.split('/')[1])) for px in prefixes if ':' not in px])
-            return size
-        return 0
+        """Returns the total count of unique IPv4 addresses routed by `asn`."""
+        return self._get_as_size(asn, 32, is_v6=False)
 
     def get_as_size_v6(self, asn):
-        """
-        Returns the size of an AS as the total count of IPv6 addresses that the AS is responsible for
-        :param asn: The autonomous system number
-        :return: number of unique IPv6 addresses routed by AS
-        """
-        prefixes = self.get_as_prefixes_effective(asn)
-        if prefixes:
-            size = sum([2 ** (128 - int(px.split('/')[1])) for px in prefixes if ':' in px])
-            return size
-        return 0
+        """Returns the total count of unique IPv6 addresses routed by `asn`."""
+        return self._get_as_size(asn, 128, is_v6=True)
 
     def get_as_name(self, asn):
-        """
-        Under construction, do not use!\n
-        :param asn: 32-bit ASN
-        :return: the AS-Name associated with this ASN
+        """Returns the AS name for `asn`, or None if unknown.
+
+        :raises RuntimeError: if this IpAsn was created without as_names_file.
         """
         if not self.asnames:
-            raise Exception("Autonomous system names not loaded during initialization")
+            raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
         return self.asnames.get(asn, None)
 
     def __repr__(self):
-        return "IpAsn(%s, '%s')" % (self.ipasndb_file, self.asnames_file)
+        return f"IpAsn({self.ipasndb_file!r}, {self.asnames_file!r})"
 
     def __iter__(self):
-        for rec in self.records:
-            yield rec
-
-
-    @staticmethod
-    def convert_32bit_to_asdot_asn_format(asn):
-        """
-        Converts a 32bit AS number into the ASDOT format AS[Number].[Number] - see rfc5396.\n
-        :param asn: The number of an AS in numerical format.
-        :return: The AS number in AS[Number].[Number] format.
-        """
-        div, mod = divmod(asn, 2**16)
-        return "AS%d.%d" % (div, mod) if div > 0 else "AS%d" % mod
+        for prefix in self.records:
+            yield prefix, self.records[prefix]
 
     @staticmethod
-    def convert_asdot_to_32bit_asn(asdot):
-        """
-        Converts a asdot representation of an AS to a 32bit AS number - see rfc5396.\n
-        :param asdot:  "AS[Number].[Number]" representation of an autonomous system
-        :return: 32bit AS number
-        """
-        pattern = re.compile(r'^(AS|as|aS|As)[0-9]+(\.[0-9]+)?')
-        match = pattern.fullmatch(asdot)
+    def convert_32bit_to_asdot(asn):
+        """Formats a 32-bit AS number in ASDOT notation (RFC 5396):
+        "AS<high>.<low>" for AS numbers above 65535, or plain "AS<number>"
+        otherwise."""
+        if not 0 <= asn <= _UINT32_MAX:
+            raise ValueError(f"{asn} is out of range for a 32-bit AS number")
+        high, low = divmod(asn, 2**16)
+        return f"AS{low}" if high == 0 else f"AS{high}.{low}"
+
+    @staticmethod
+    def convert_asdot_to_32bit(asdot):
+        """Parses an ASDOT-notation AS number (RFC 5396) - either "AS<number>"
+        or "AS<high>.<low>", where <high> and <low> are each a 16-bit
+        component (0-65535) - into its plain 32-bit integer form."""
+        match = _ASDOT_PATTERN.match(asdot)
         if not match:
-            raise ValueError("Invalid asdot format for input. input format must be something like"
-                             " AS<Number> or AS<Number>.<Number> ")
-        if asdot.find(".") > 0:  # asdot input is of the format AS[d+].<d+> for example AS1.234
-            s1, s2 = asdot.split(".")
-            i1 = int(s1[2:])
-            i2 = int(s2)
-            asn = 2**16 * i1 + i2
-        else:
-            asn = int(asdot[2:])  # asdot input is of the format AS[d+] for example AS123
-        return asn
+            raise ValueError(
+                f"{asdot!r} is not a valid ASDOT string; expected AS<number> or AS<high>.<low>"
+            )
+        high, low = match.group("high"), match.group("low")
+        if low is None:
+            asn = int(high)
+            if asn > _UINT32_MAX:
+                raise ValueError(f"{asdot!r} is out of range for a 32-bit AS number")
+            return asn
+        high, low = int(high), int(low)
+        if high > _UINT16_MAX or low > _UINT16_MAX:
+            raise ValueError(f"{asdot!r} has a component greater than {_UINT16_MAX}")
+        return (high << 16) | low
