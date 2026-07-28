@@ -1,5 +1,5 @@
 from argparse import HelpFormatter, ArgumentParser
-from downloader import Downloader
+from .downloader import Downloader
 from sys import argv
 import pdb
 import os
