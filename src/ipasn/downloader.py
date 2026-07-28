@@ -2,7 +2,8 @@ from urllib.request import urlopen
 from datetime import datetime, UTC
 import json
 import re
-from ipasn import mrtx
+import sys
+from ipasn import mrt
 
 class Downloader:
 
@@ -80,12 +81,12 @@ class Downloader:
                 print("Couldn't download file for", date)
 
     def convert_file(self, in_file, out_file):
-        prefixes = mrtx.parse_mrt_file(
+        prefixes = mrt.parse_mrt_file(
             in_file,
-            print_progress=True,
+            on_progress=lambda msg: print(msg, file=sys.stderr),
             skip_record_on_error=True
         )
-        mrtx.dump_prefixes_to_file(prefixes, out_file)
+        mrt.dump_prefixes_to_file(prefixes, out_file)
 
     def download_asnames(self):
         http = urlopen(self.ASNAMES_URL)
