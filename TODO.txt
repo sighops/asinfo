@@ -1,0 +1,32 @@
+Don't maintain separate utilities for downloading and converting files.
+Create one cli util that can be used for everything but move code into a shared lib that ipasn and the cli tool both use.
+Allow people to use ipasn as just a fully featured cli tool and/or as a module in a larger app.
+
+CLI needs to:
+
+Be able to download and use it's own data
+Give info on the age of the data used
+Quickly load a cache of its most recent data for cli lookups
+Keep only most recent copy of records for lookups
+
+example commands:
+
+ipasn lookup IP
+ipasn name ASN
+ipasn prefixes ASN
+ipasn prefixesv6 ASN ???
+ipasn download rib|names
+ipasn update
+
+
+
+
+
+
+
+
+
+
+
+DONE Support all methods for file downloading(ftp, http, https, etc.)
+DONE Use pytricia
