@@ -89,38 +89,6 @@ class Downloader:
         finally:
             ftp.quit()
 
-    def download_multiple_ribs(self, dates):
-        """
-        Currently expects a list of dates to be given in format YYYYMMDD.HHMM
-        NOTE:  Starting at 2009-05-15 16:00 ribs files are available every 2 hours on the hour.  Before that the
-        timestamps vary and this will likely fail for earlier dates.
-        """
-        for date in dates:
-            date_path = date[:4] + "." + date[4:6]
-            filename = "rib." + date + ".1200.bz2"
-            url_base = self.RIB_URL_V4_TEMPLATE % (date_path)
-            success = False
-            try:
-                download_rib_file(url_base + filename)
-                success = True
-            except:
-                pass
-
-            if success == False:
-                print("Couldn't find file for", filename)
-                filename = "rib." + date + ".1400.bz2"
-                print("Trying again for ", filename)
-                try:
-                    download_rib_file(url_base + filename)
-                    success = True
-                except:
-                    pass
-
-            if success:
-                print("Got", filename, "for", date)
-            else:
-                print("Couldn't download file for", date)
-
     def convert_file(self, in_file, out_file):
         prefixes = mrt.parse_mrt_file(
             in_file,
