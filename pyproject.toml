@@ -4,9 +4,34 @@ version = "0.9.0"
 description = "Tools for looking up ASN from IP and other AS information such as name, announced prefixes, etc."
 readme = "README.md"
 requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [
+    { name = "caleb", email = "calebdjones@gmail.com" },
+]
+keywords = ["asn", "bgp", "ip", "networking", "routing", "rib", "mrt", "whois"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Telecommunications Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet",
+    "Topic :: System :: Networking",
+]
 dependencies = [
     "pytricia>=1.2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sighops/asinfo"
+Repository = "https://github.com/sighops/asinfo"
+Issues = "https://github.com/sighops/asinfo/issues"
 
 [project.scripts]
 asinfo = "asinfo.cli:main"
