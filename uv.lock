@@ -38,7 +38,6 @@ version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "pytricia" },
-    { name = "setuptools" },
 ]
 
 [package.dev-dependencies]
@@ -47,10 +46,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "pytricia", specifier = ">=1.2.0" },
-    { name = "setuptools", specifier = "==67.6.1" },
-]
+requires-dist = [{ name = "pytricia", specifier = ">=1.2.0" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.3.5" }]
@@ -95,15 +91,6 @@ name = "pytricia"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/42/a3/8180f27782d670632bdf859d692d84a994808b7b1df89416b68e3a6b1ecd/pytricia-1.2.0.tar.gz", hash = "sha256:9c1643aed71db24379639b18513f36fa6e5d25c10007c6f4a23ad623002ee432", size = 34094, upload-time = "2025-07-11T14:47:03.941Z" }
-
-[[package]]
-name = "setuptools"
-version = "67.6.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cb/46/22ec35f286a77e6b94adf81b4f0d59f402ed981d4251df0ba7b992299146/setuptools-67.6.1.tar.gz", hash = "sha256:257de92a9d50a60b8e22abfcbb771571fde0dbf3ec234463212027a4eeecbe9a", size = 2486256, upload-time = "2023-03-28T13:45:45.967Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/fc/8781442def77b0aa22f63f266d4dadd486ebc0c5371d6290caf4320da4b7/setuptools-67.6.1-py3-none-any.whl", hash = "sha256:e728ca814a823bf7bf60162daf9db95b93d532948c4c0bea762ce62f60189078", size = 1089263, upload-time = "2023-03-28T13:45:43.525Z" },
-]
 
 [[package]]
 name = "tomli"
