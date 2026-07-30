@@ -46,15 +46,12 @@ def open_archive(path: str) -> BinaryIO:
     raise MrtFormatError(f"cannot determine archive type of {path!r} (not bz2 or gzip)")
 
 
-def _describe_origin(origin: int | set[int]) -> str:
-    return f"{{{len(origin)} ASes}}" if isinstance(origin, set) else str(origin)
-
-
 def parse_mrt_file(
     mrt_file: str | BinaryIO,
     *,
     on_progress: ProgressCallback | None = None,
     skip_record_on_error: bool = False,
+    check_all_peers: bool = False,
 ) -> dict[str, Union[int, set]]:
     """Parses an MRT/RIB BGP table dump into {"prefix/len": origin_asn_or_set}.
 
@@ -65,15 +62,24 @@ def parse_mrt_file(
     If `skip_record_on_error` is True, a RIB entry whose path attributes
     don't yield a usable origin AS is skipped (with a warning via
     `on_progress`, if given) instead of aborting the whole parse.
+
+    `check_all_peers` controls how many BGP peers' views of each prefix are
+    decoded in TABLE_DUMP_V2 records. Default False only decodes the first
+    peer entry per prefix (matching pyasn's default and its speed - a real
+    RIB can have dozens of peers per prefix, and decoding every one of them
+    multiplies the AS_PATH-parsing work several times over). Pass True to
+    decode every peer entry instead, which is needed for the MOAS-conflict
+    count below to reflect true peer disagreement rather than just
+    disagreement between separate MRT records for the same prefix.
     """
     if isinstance(mrt_file, str):
         mrt_file = open_archive(mrt_file)
 
     prefixes: dict[str, int | set] = {}
     started = perf_counter()
-    n_entries = n_skipped = n_errors = 0
+    n_entries = n_skipped = n_errors = n_moas_conflicts = 0
 
-    for record in iter_records(mrt_file):
+    for record in iter_records(mrt_file, check_all_peers=check_all_peers):
         if isinstance(record, SkippedRecord):
             n_skipped += 1
             if on_progress:
@@ -98,14 +104,12 @@ def parse_mrt_file(
             # TABLE_DUMP (v1) legitimately repeats a prefix once per peer that
             # announced it - that's normal, and we keep whichever was seen
             # first. TABLE_DUMP_V2 records a prefix once per MRT record with
-            # one sub-entry per peer, so a disagreement there is unusual
-            # enough to be worth surfacing.
-            if on_progress and record.header.type == MrtType.TABLE_DUMP_V2:
-                on_progress(
-                    f"WARNING: repeated prefix {record.prefix!r} maps to "
-                    f"different origins ({_describe_origin(existing)} vs "
-                    f"{_describe_origin(origin)}); keeping the first"
-                )
+            # one sub-entry per peer, so a disagreement there (MOAS - multiple
+            # origin AS) is tallied and reported as a single summary count
+            # rather than one line per conflict, since a full RIB dump can
+            # legitimately have thousands of these.
+            if record.header.type == MrtType.TABLE_DUMP_V2:
+                n_moas_conflicts += 1
 
         n_entries += 1
         if on_progress and n_entries % _PROGRESS_INTERVAL == 0:
@@ -117,7 +121,8 @@ def parse_mrt_file(
     if on_progress:
         on_progress(
             f"done: {n_entries} entries, {n_skipped} skipped, {n_errors} errors, "
-            f"{perf_counter() - started:.1f}s"
+            f"{n_moas_conflicts} MOAS conflicts (repeated prefix, different origins - "
+            f"first seen kept), {perf_counter() - started:.1f}s"
         )
     return prefixes
 

@@ -43,10 +43,17 @@ _MULTICAST_AND_GENERIC_SUBTYPES = {
 }
 
 
-def iter_records(stream: BinaryIO) -> Iterator[Record]:
+def iter_records(stream: BinaryIO, *, check_all_peers: bool = False) -> Iterator[Record]:
     """Yields one Record per MRT record (TABLE_DUMP_V2 RIB records, which can
     bundle one RIB entry per peer for the same prefix, yield multiple
     RawTableEntry in a row - all sharing that prefix).
+
+    `check_all_peers` controls how many of a TABLE_DUMP_V2 record's peer
+    entries are yielded: by default only the first (matching pyasn's default
+    and its speed - real RIBs can have dozens of peers per prefix, and
+    decoding all of them multiplies the AS_PATH-parsing work several times
+    over for no benefit beyond MOAS-conflict detection). Pass True to yield
+    every peer entry instead, at that cost.
 
     A mid-stream decompression EOFError (raised by bz2/gzip when the
     underlying archive is truncated - e.g. a download that got cut short) is
@@ -75,7 +82,7 @@ def iter_records(stream: BinaryIO) -> Iterator[Record]:
         if header.type == MrtType.TABLE_DUMP:
             yield _parse_table_dump_v1(header, body)
         elif header.type == MrtType.TABLE_DUMP_V2:
-            yield from _iter_table_dump_v2(header, body)
+            yield from _iter_table_dump_v2(header, body, check_all_peers=check_all_peers)
         else:
             yield SkippedRecord(header, f"unsupported MRT record type {header.type}")
 
@@ -108,7 +115,9 @@ def _parse_table_dump_v1(header: MrtHeader, body: ByteReader) -> RawTableEntry:
     return RawTableEntry(header=header, prefix=prefix, attr_data=attr_data, asn_width=2)
 
 
-def _iter_table_dump_v2(header: MrtHeader, body: ByteReader) -> Iterator[Record]:
+def _iter_table_dump_v2(
+    header: MrtHeader, body: ByteReader, *, check_all_peers: bool = False
+) -> Iterator[Record]:
     if header.subtype == TableDumpV2Subtype.PEER_INDEX_TABLE:
         # Maps peer-index -> peer IP/AS for the RIB records that follow; not
         # needed to extract a prefix's origin AS from its own attributes.
@@ -138,3 +147,5 @@ def _iter_table_dump_v2(header: MrtHeader, body: ByteReader) -> Iterator[Record]
         attr_len = body.read_u16()
         attr_data = body.read(attr_len)
         yield RawTableEntry(header=header, prefix=prefix, attr_data=attr_data, asn_width=4)
+        if not check_all_peers:
+            break  # remaining peer entries are never read - only the first, by far the common case
