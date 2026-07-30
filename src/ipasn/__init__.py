@@ -1,9 +1,15 @@
 import gzip
 import json
 import re
+from importlib.metadata import PackageNotFoundError, version
 from ipaddress import collapse_addresses, ip_network
 
 import pytricia
+
+try:
+    __version__ = version("ipasn")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 _ASDOT_PATTERN = re.compile(r"^AS(?P<high>\d+)(?:\.(?P<low>\d+))?\Z", re.IGNORECASE)
 _UINT16_MAX = 0xFFFF
@@ -132,6 +138,17 @@ class IpAsn:
         if not self.asnames:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
         return self.asnames.get(asn, None)
+
+    def find_asns_by_name(self, name_query):
+        """Returns [(asn, name), ...] for every AS name containing
+        `name_query` (case-insensitive substring match).
+
+        :raises RuntimeError: if this IpAsn was created without as_names_file.
+        """
+        if not self.asnames:
+            raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
+        query = name_query.lower()
+        return [(asn, name) for asn, name in self.asnames.items() if query in name.lower()]
 
     def __repr__(self):
         return f"IpAsn({self.ipasndb_file!r}, {self.asnames_file!r})"

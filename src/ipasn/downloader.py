@@ -1,4 +1,5 @@
 from urllib.request import urlopen
+from ftplib import FTP
 from datetime import datetime, UTC
 import json
 import re
@@ -7,27 +8,40 @@ from ipasn import mrt
 
 class Downloader:
 
+    FTP_HOST = "archive.routeviews.org"
+    FTP_ROOT_V4 = "bgpdata"
+
     def __init__(self):
         self.RIB_URL_V4_TEMPLATE = "https://archive.routeviews.org/bgpdata/%s/RIBS/"
         self.RIB_URL_V6_TEMPLATE = "https://archive.routeviews.org/route-views6/bgpdata/%s/RIBS/"
         self.RIB_FILE_PAT = re.compile(r'href="(rib\.\d+\.\d+\.bz2)"', re.U)
+        self.RIB_FILENAME_PAT = re.compile(r'rib\.\d+\.\d+\.bz2$', re.U)
 
         self.ASNAMES_URL = 'http://www.cidr-report.org/as2.0/autnums.html'
         self.ASNAME_PAT = re.compile(r'<a href=".+">AS(\d+)\s*</a>\s*(.+)', re.U)
-    
-    def download_latest_rib_file(self, file_url=None, outfile=None):
+
+    def download_latest_rib_file(self, file_url=None, outfile=None, protocol="https"):
+        """Downloads the latest RIB archive and converts it to the IP-ASN dat format.
+
+        `protocol` selects the transport: "https" (default) or "ftp". There
+        is no automatic fallback between them - a failure is raised as-is;
+        pass protocol="ftp" explicitly if that's what you want.
+        """
         if outfile == None:
             raise Exception("no outfile specified")
 
-        if file_url == None:
-            file_url = self.get_latest_rib_file_url()
-
-        print("Downloading:", file_url)
-        resp = urlopen(file_url)
-
         intermediate_outfile = outfile + '.bz2'
-        with open(intermediate_outfile, 'wb') as f:
-            f.write(resp.read())
+        if protocol == "https":
+            if file_url == None:
+                file_url = self.get_latest_rib_file_url()
+            print("Downloading:", file_url)
+            resp = urlopen(file_url)
+            with open(intermediate_outfile, 'wb') as f:
+                f.write(resp.read())
+        elif protocol == "ftp":
+            self._download_latest_rib_file_ftp(intermediate_outfile)
+        else:
+            raise ValueError(f"unknown protocol {protocol!r}; expected 'https' or 'ftp'")
 
         self.convert_file(intermediate_outfile, outfile)
 
@@ -48,6 +62,33 @@ class Downloader:
         file_url = archive_url + filename
         return file_url
 
+    def get_latest_rib_file_path_ftp(self):
+        """Returns the FTP path (relative to FTP_HOST's root) of the latest
+        RIB archive, e.g. "bgpdata/2026.07/RIBS/rib.20260728.1200.bz2"."""
+        now = datetime.now(UTC)
+        date_path = f"{self.FTP_ROOT_V4}/{now.strftime('%Y.%m')}/RIBS"
+        ftp = FTP(self.FTP_HOST)
+        try:
+            ftp.login()
+            files = ftp.nlst(date_path)
+        finally:
+            ftp.quit()
+        rib_files = sorted(f for f in files if self.RIB_FILENAME_PAT.search(f))
+        if not rib_files:
+            raise LookupError(f"No RIB files found via FTP in {date_path}")
+        return rib_files[-1]
+
+    def _download_latest_rib_file_ftp(self, intermediate_outfile):
+        remote_path = self.get_latest_rib_file_path_ftp()
+        print("Downloading via FTP:", remote_path)
+        ftp = FTP(self.FTP_HOST)
+        try:
+            ftp.login()
+            with open(intermediate_outfile, 'wb') as f:
+                ftp.retrbinary(f'RETR {remote_path}', f.write)
+        finally:
+            ftp.quit()
+
     def download_multiple_ribs(self, dates):
         """
         Currently expects a list of dates to be given in format YYYYMMDD.HHMM
@@ -57,7 +98,7 @@ class Downloader:
         for date in dates:
             date_path = date[:4] + "." + date[4:6]
             filename = "rib." + date + ".1200.bz2"
-            url_base = self.RIB_URL_TEMPLATE % (archive_root, date_path)
+            url_base = self.RIB_URL_V4_TEMPLATE % (date_path)
             success = False
             try:
                 download_rib_file(url_base + filename)

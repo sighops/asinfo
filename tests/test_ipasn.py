@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+import ipasn
 from ipasn import IpAsn
 
 FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn.fake")
@@ -172,6 +173,30 @@ def test_asnames_compressed():
     assert "google" in name.lower()
 
     assert db_with_names.get_as_name(-1) is None
+
+
+def test_find_asns_by_name():
+    """Reverse (name -> ASN) lookup, case-insensitive substring match."""
+    db_with_names = IpAsn(IPASN_DB_PATH, as_names_file=AS_NAMES_FILE_PATH)
+    matches = db_with_names.find_asns_by_name("google")
+    asn, _prefix = db_with_names.lookup("8.8.8.8")
+    assert asn in dict(matches)
+    assert all("google" in name.lower() for _asn, name in matches)
+
+
+def test_find_asns_by_name_no_matches():
+    db_with_names = IpAsn(IPASN_DB_PATH, as_names_file=AS_NAMES_FILE_PATH)
+    assert db_with_names.find_asns_by_name("no-such-as-name-xyz") == []
+
+
+def test_find_asns_by_name_without_as_names_raises(asndb):
+    with pytest.raises(RuntimeError):
+        asndb.find_asns_by_name("google")
+
+
+def test_version_is_set():
+    assert isinstance(ipasn.__version__, str)
+    assert ipasn.__version__
 
 
 def test_assize(asndb):
