@@ -6,7 +6,7 @@ import pytest
 
 from ipasn.downloader import Downloader
 
-RIB_FIXTURE = Path(__file__).parent / "data" / "rib.20140523.0600_firstMB.bz2"
+RIB_FIXTURE = Path(__file__).parent / "data" / "rib.20260730.1400_first2MB.bz2"
 
 
 class FakeResponse:
@@ -84,7 +84,7 @@ def test_download_latest_rib_file(monkeypatch, tmp_path):
 
     assert Path(outfile + ".bz2").read_bytes() == content
     text = Path(outfile).read_text()
-    assert "56203" in text  # known ASN in this fixture (see tests/test_mrtx.py)
+    assert "38803" in text  # known ASN in this fixture (see tests/test_mrtx.py)
 
 
 def test_convert_file(tmp_path):
@@ -93,7 +93,7 @@ def test_convert_file(tmp_path):
     d.convert_file(str(RIB_FIXTURE), outfile)
 
     text = Path(outfile).read_text()
-    assert "1.0.4.0/24\t56203" in text
+    assert "1.0.4.0/24\t38803" in text
 
 
 def test_download_asnames(monkeypatch):
@@ -169,7 +169,7 @@ def test_download_latest_rib_file_explicit_ftp_protocol(monkeypatch, tmp_path):
 
     assert fake_ftp.retrieved_path.endswith("rib.20260101.0000.bz2")
     assert Path(outfile + ".bz2").read_bytes() == content
-    assert "56203" in Path(outfile).read_text()
+    assert "38803" in Path(outfile).read_text()
 
 
 def test_download_latest_rib_file_unknown_protocol_raises(tmp_path):

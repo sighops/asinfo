@@ -6,8 +6,8 @@ import ipasn
 from ipasn import IpAsn
 
 FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn.fake")
-IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn_20140513.dat.gz")
-IPASN6_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn6_20151101.dat.gz")
+IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn_20260730.dat.gz")
+IPASN6_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn6_20260730.dat.gz")
 AS_NAMES_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json")
 AS_NAMES_COMPRESSED_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json.gz")
 
@@ -98,19 +98,17 @@ def test_get_tud_prefixes(asndb):
 
 
 def test_get_prefixes2(asndb):
-    """get_as_prefixes() on a border case (bug report #10).
+    """get_as_prefixes() on a border case: one ASN announces a prefix whose
+    supernet is announced by a different ASN. Each lookup must return only
+    its own exact-match prefix, not the other's.
 
-    Why this border-case is interesting:
-        $ cat ipasn_20141028.dat | grep 13289$
-        82.212.192.0/18  13289
-        $ cat ipasn_20141028.dat | grep 82.212.192.0
-        82.212.192.0/18  13289
-        82.212.192.0/19  29624
+        12.216.192.0/23  39989
+        12.216.193.0/24  16834   <- more specific, different origin
     """
-    prefixes = asndb.get_as_prefixes(13289)
-    assert set(prefixes) == {"82.212.192.0/18"}
-    prefixes = asndb.get_as_prefixes(11018)
-    assert set(prefixes) == {"216.69.64.0/19"}
+    prefixes = asndb.get_as_prefixes(39989)
+    assert set(prefixes) == {"12.216.192.0/23"}
+    prefixes = asndb.get_as_prefixes(16834)
+    assert set(prefixes) == {"12.216.193.0/24"}
 
 
 def test_get_prefixes_unknown_asn(asndb):
@@ -205,7 +203,7 @@ def test_assize(asndb):
 
     assert asndb.get_as_size(1133) == 65536    # Uni Twente AS, 1 /16 prefix. Manually checked.
     assert asndb.get_as_size(1128) == 196608   # TU-Delft AS, 3 non-overlapping /16s. RIPE stat.
-    assert asndb.get_as_size(1124) == 163840   # UVA AS, 3 non-overlapping prefixes (2 /16, 1 /17).
+    assert asndb.get_as_size(1124) == 196608   # UVA AS, 4 non-overlapping prefixes (2 /16, 2 /17).
 
 
 def test_load_from_string():
