@@ -1,6 +1,6 @@
-# ipasn
+# asinfo
 
-ipasn is a library providing local IP address to ASN lookups, and related AS information, using RIB snapshot data.  
+asinfo is a library providing local IP address to ASN lookups, and related AS information, using RIB snapshot data.  
 It also provides facilities for downloading necessary data.
 
 ## Features

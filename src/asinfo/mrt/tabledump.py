@@ -49,11 +49,11 @@ def iter_records(stream: BinaryIO, *, check_all_peers: bool = False) -> Iterator
     RawTableEntry in a row - all sharing that prefix).
 
     `check_all_peers` controls how many of a TABLE_DUMP_V2 record's peer
-    entries are yielded: by default only the first (matching pyasn's default
-    and its speed - real RIBs can have dozens of peers per prefix, and
-    decoding all of them multiplies the AS_PATH-parsing work several times
-    over for no benefit beyond MOAS-conflict detection). Pass True to yield
-    every peer entry instead, at that cost.
+    entries are yielded: by default only the first - real RIBs can have
+    dozens of peers per prefix, and decoding all of them multiplies the
+    AS_PATH-parsing work several times over for no benefit beyond
+    MOAS-conflict detection. Pass True to yield every peer entry instead,
+    at that cost.
 
     A mid-stream decompression EOFError (raised by bz2/gzip when the
     underlying archive is truncated - e.g. a download that got cut short) is

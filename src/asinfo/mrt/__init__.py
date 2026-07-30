@@ -1,10 +1,10 @@
-"""ipasn.mrt - MRT/RIB BGP table-dump parsing (RFC 6396) and IP-ASN database export.
+"""asinfo.mrt - MRT/RIB BGP table-dump parsing (RFC 6396) and IP-ASN database export.
 
 
 Public API:
     parse_mrt_file(mrt_file, on_progress=None, skip_record_on_error=False)
         -> {"prefix/len": origin_asn_or_set_of_asns}
-    dump_prefixes_to_file(prefixes, ipasn_file_name, source_description="", debug_write_sets=False)
+    dump_prefixes_to_file(prefixes, output_file_name, source_description="", debug_write_sets=False)
     open_archive(path) -> an open bz2/gzip file object
 """
 
@@ -65,12 +65,12 @@ def parse_mrt_file(
 
     `check_all_peers` controls how many BGP peers' views of each prefix are
     decoded in TABLE_DUMP_V2 records. Default False only decodes the first
-    peer entry per prefix (matching pyasn's default and its speed - a real
-    RIB can have dozens of peers per prefix, and decoding every one of them
-    multiplies the AS_PATH-parsing work several times over). Pass True to
-    decode every peer entry instead, which is needed for the MOAS-conflict
-    count below to reflect true peer disagreement rather than just
-    disagreement between separate MRT records for the same prefix.
+    peer entry per prefix - a real RIB can have dozens of peers per prefix,
+    and decoding every one of them multiplies the AS_PATH-parsing work
+    several times over. Pass True to decode every peer entry instead, which
+    is needed for the MOAS-conflict count below to reflect true peer
+    disagreement rather than just disagreement between separate MRT records
+    for the same prefix.
     """
     if isinstance(mrt_file, str):
         mrt_file = open_archive(mrt_file)
@@ -129,14 +129,14 @@ def parse_mrt_file(
 
 def dump_prefixes_to_file(
     prefixes: dict,
-    ipasn_file_name: str,
+    output_file_name: str,
     source_description: str = "",
     debug_write_sets: bool = False,
 ) -> None:
     """Writes a {prefix: origin} mapping out in the IP-ASN32-DAT text format."""
     n_v6 = sum(1 for prefix in prefixes if ":" in prefix)
     n_v4 = len(prefixes) - n_v6
-    with open(ipasn_file_name, "w", encoding="ascii") as fh:
+    with open(output_file_name, "w", encoding="ascii") as fh:
         fh.write("; IP-ASN32-DAT file\n")
         fh.write(f"; Original source: {source_description}\n")
         fh.write(f"; Prefixes-v4   : {n_v4}\n; Prefixes-v6   : {n_v6}\n;\n")

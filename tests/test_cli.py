@@ -5,18 +5,18 @@ from pathlib import Path
 
 import pytest
 
-import ipasn
-from ipasn import IpAsn
-from ipasn.cli import cli as CLI
-from ipasn.cli import main
-from ipasn.downloader import Downloader
+import asinfo
+from asinfo import AsInfo
+from asinfo.cli import cli as CLI
+from asinfo.cli import main
+from asinfo.downloader import Downloader
 
 FAKE_DB_PATH = Path(__file__).parent / "data" / "ipasn.fake"
 
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    """Redirects the hardcoded ~/.ipasn/cache paths cli.py uses into a temp dir."""
+    """Redirects the hardcoded ~/.asinfo/cache paths cli.py uses into a temp dir."""
     monkeypatch.setenv("HOME", str(tmp_path))
     return tmp_path
 
@@ -25,7 +25,7 @@ def home(tmp_path, monkeypatch):
 def cli_with_pickled_db(home):
     c = CLI()
     c.setup_local_dir_if_not_exist()
-    db = IpAsn(str(FAKE_DB_PATH))
+    db = AsInfo(str(FAKE_DB_PATH))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -37,7 +37,7 @@ def cli_with_pickled_db_and_names(home, tmp_path):
     c.setup_local_dir_if_not_exist()
     names_file = tmp_path / "asnames.json"
     names_file.write_text(json.dumps({"1": "EXAMPLE-ONE-NET", "2": "EXAMPLE-TWO-NET"}))
-    db = IpAsn(str(FAKE_DB_PATH), as_names_file=str(names_file))
+    db = AsInfo(str(FAKE_DB_PATH), as_names_file=str(names_file))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -53,7 +53,7 @@ def test_help_shows_custom_metavar_choices(home, capsys):
 
 def test_default_paths(home):
     c = CLI()
-    expected = str(home / ".ipasn" / "cache")
+    expected = str(home / ".asinfo" / "cache")
     assert c.default_path == expected
     assert c.default_as_names_file == expected + "/asnames"
     assert c.default_db_file == expected + "/asndb"
@@ -97,12 +97,12 @@ def test_detect_term_type_as_substring_misclassifies_names(home):
 
 
 def test_process_no_args_prints_help(home, monkeypatch, capsys):
-    monkeypatch.setattr("sys.argv", ["ipasn"])
+    monkeypatch.setattr("sys.argv", ["asinfo"])
     c = CLI()
     with pytest.raises(SystemExit):
         c.process()  # --help exits after printing (argparse's own behavior)
     out = capsys.readouterr().out
-    assert "ipasn COMMAND [OPTIONS]" in out
+    assert "asinfo COMMAND [OPTIONS]" in out
 
 
 def test_argparse_wiring_download(home):
@@ -152,8 +152,8 @@ def test_download_ribs_writes_pickle(home, monkeypatch):
 
 def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch):
     """Known bug: download_ribs() always passes default_as_names_file to
-    IpAsn(), which tries to open it unconditionally - crashes if `ipasn
-    download ribs` is run before `ipasn download asnames` has ever run."""
+    AsInfo(), which tries to open it unconditionally - crashes if `asinfo
+    download ribs` is run before `asinfo download asnames` has ever run."""
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
         Path(outfile).write_bytes(FAKE_DB_PATH.read_bytes())
 
@@ -259,7 +259,7 @@ def test_version_flag(home, capsys):
     c = CLI()
     with pytest.raises(SystemExit):
         c.parser.parse_args(["--version"])
-    assert capsys.readouterr().out.strip() == f"ipasn {ipasn.__version__}"
+    assert capsys.readouterr().out.strip() == f"asinfo {asinfo.__version__}"
 
 
 def test_main_invokes_process(monkeypatch):

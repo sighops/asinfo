@@ -7,7 +7,7 @@ from ipaddress import collapse_addresses, ip_network
 import pytricia
 
 try:
-    __version__ = version("ipasn")
+    __version__ = version("asinfo")
 except PackageNotFoundError:
     __version__ = "unknown"
 
@@ -16,17 +16,17 @@ _UINT16_MAX = 0xFFFF
 _UINT32_MAX = 0xFFFFFFFF
 
 
-class IpAsn:
+class AsInfo:
     """IPv4/IPv6 to ASN lookup table, built from a BGP MRT/RIB-derived IP-ASN database."""
 
-    def __init__(self, ipasn_file=None, as_names_file=None, ipasn_string=None):
+    def __init__(self, db_file=None, as_names_file=None, db_string=None):
         """
         Loads an IP-ASN database and prepares it for lookups.
 
-        Provide exactly one data source: `ipasn_file` (a path to a database
-        file, optionally gzip-compressed) or `ipasn_string` (the database
-        contents already in memory). Format is a text file with lines of 
-        "NETWORK/BITS<tab>ASN".  See the ipasn-utils scripts for building one 
+        Provide exactly one data source: `db_file` (a path to a database
+        file, optionally gzip-compressed) or `db_string` (the database
+        contents already in memory). Format is a text file with lines of
+        "NETWORK/BITS<tab>ASN".  See the `asinfo` CLI for building one
         from a BGP MRT/RIB dump.
 
         `as_names_file`, if given, additionally loads AS names (ASN -> name)
@@ -34,20 +34,20 @@ class IpAsn:
         """
         self.records = pytricia.PyTricia()
         self.as_prefixes = {}
-        self.ipasndb_file = ipasn_file
+        self.db_file = db_file
         self.asnames_file = as_names_file
         self.asnames = None
 
-        if ipasn_file is not None:
-            opener = gzip.open if ipasn_file.endswith(".gz") else open
-            with opener(ipasn_file, "rt") as f:
+        if db_file is not None:
+            opener = gzip.open if db_file.endswith(".gz") else open
+            with opener(db_file, "rt") as f:
                 for line in f:
                     self.process_load_line(line)
-        elif ipasn_string is not None:
-            for line in ipasn_string.splitlines():
+        elif db_string is not None:
+            for line in db_string.splitlines():
                 self.process_load_line(line)
         else:
-            raise ValueError("No data given: pass either ipasn_file or ipasn_string.")
+            raise ValueError("No data given: pass either db_file or db_string.")
 
         self.asnames = self.read_asnames() if as_names_file else None
 
@@ -133,7 +133,7 @@ class IpAsn:
     def get_as_name(self, asn):
         """Returns the AS name for `asn`, or None if unknown.
 
-        :raises RuntimeError: if this IpAsn was created without as_names_file.
+        :raises RuntimeError: if this AsInfo was created without as_names_file.
         """
         if not self.asnames:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
@@ -143,7 +143,7 @@ class IpAsn:
         """Returns [(asn, name), ...] for every AS name containing
         `name_query` (case-insensitive substring match).
 
-        :raises RuntimeError: if this IpAsn was created without as_names_file.
+        :raises RuntimeError: if this AsInfo was created without as_names_file.
         """
         if not self.asnames:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
@@ -151,7 +151,7 @@ class IpAsn:
         return [(asn, name) for asn, name in self.asnames.items() if query in name.lower()]
 
     def __repr__(self):
-        return f"IpAsn({self.ipasndb_file!r}, {self.asnames_file!r})"
+        return f"AsInfo({self.db_file!r}, {self.asnames_file!r})"
 
     def __iter__(self):
         for prefix in self.records:

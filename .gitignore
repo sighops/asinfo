@@ -57,8 +57,7 @@ coverage.xml
 docs/_build/
 
 # Binary files
-src/ipasn/pickle
-src/ipasn/pyasn
+src/asinfo/pickle
 
 CLAUDE.md
 

@@ -1,6 +1,6 @@
 import pytest
 
-from ipasn.mrt import is_asn_invalid
+from asinfo.mrt import is_asn_invalid
 
 
 @pytest.mark.parametrize("asn", [15169, 1128, 3320, 64495, 999_999])

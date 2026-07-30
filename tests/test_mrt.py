@@ -2,7 +2,7 @@ from os import path
 
 import pytest
 
-from ipasn.mrt import MrtFormatError, parse_mrt_file
+from asinfo.mrt import MrtFormatError, parse_mrt_file
 
 RIB_TD1_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20080501.0644_firstMB.bz2")
 RIB_TD2_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20260730.1400_first2MB.bz2")

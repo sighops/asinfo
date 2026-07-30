@@ -1,6 +1,6 @@
 Don't maintain separate utilities for downloading and converting files.
-Create one cli util that can be used for everything but move code into a shared lib that ipasn and the cli tool both use.
-Allow people to use ipasn as just a fully featured cli tool and/or as a module in a larger app.
+Create one cli util that can be used for everything but move code into a shared lib that asinfo and the cli tool both use.
+Allow people to use asinfo as just a fully featured cli tool and/or as a module in a larger app.
 
 CLI needs to:
 
@@ -11,12 +11,12 @@ Keep only most recent copy of records for lookups
 
 example commands:
 
-ipasn lookup IP
-ipasn name ASN
-ipasn prefixes ASN
-ipasn prefixesv6 ASN ???
-ipasn download rib|names
-ipasn update
+asinfo lookup IP
+asinfo name ASN
+asinfo prefixes ASN
+asinfo prefixesv6 ASN ???
+asinfo download rib|names
+asinfo update
 
 
 

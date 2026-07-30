@@ -3,7 +3,7 @@ from .downloader import Downloader
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-import ipasn
+import asinfo
 import pickle
 import re
 
@@ -27,7 +27,7 @@ class cli:
 
     def __init__(self):
 
-        self.default_path = str(Path('~/.ipasn/cache').expanduser())
+        self.default_path = str(Path('~/.asinfo/cache').expanduser())
         self.default_as_names_file = self.default_path + '/asnames'
         self.default_db_file = self.default_path + '/asndb'
         self.default_pickle_file = self.default_path + '/asndb_pickle'
@@ -35,17 +35,17 @@ class cli:
 
         parser = ArgumentParser(
             formatter_class=CustomFormatter,
-            description='ipasn command line utility for lookups and file downloads',
-            usage="ipasn COMMAND [OPTIONS]"
+            description='asinfo command line utility for lookups and file downloads',
+            usage="asinfo COMMAND [OPTIONS]"
         )
-        parser.add_argument('--version', action='version', version=f'ipasn {ipasn.__version__}')
+        parser.add_argument('--version', action='version', version=f'asinfo {asinfo.__version__}')
         subparser = parser.add_subparsers(title="Commands", dest="command", metavar="")
 
 
         # Download parser and args
         dl = subparser.add_parser(
             "download",
-            help="Download files used by ipasn to perform various lookups",
+            help="Download files used by asinfo to perform various lookups",
             formatter_class=CustomFormatter
         )
         dl.set_defaults(func=self.download)
@@ -74,7 +74,7 @@ class cli:
         args.func(args)
 
     def setup_local_dir_if_not_exist(self):
-        path = Path('~/.ipasn/cache').expanduser()
+        path = Path('~/.asinfo/cache').expanduser()
         if path.exists():
             return
         path.mkdir(parents=True, exist_ok=True)
@@ -112,7 +112,7 @@ class cli:
         fpath = self.default_db_file
         names = self.downloader.download_latest_rib_file(outfile=fpath)
 
-        db = ipasn.IpAsn(fpath, self.default_as_names_file)
+        db = asinfo.AsInfo(fpath, self.default_as_names_file)
         p = pickle.dumps(db)
         pfpath = self.default_pickle_file
         with open(pfpath, 'wb') as f:
@@ -145,7 +145,7 @@ class cli:
                 try:
                     matches = db.find_asns_by_name(args.term)
                 except RuntimeError:
-                    print("AS names not loaded - run `ipasn download asnames` first.", file=sys.stderr)
+                    print("AS names not loaded - run `asinfo download asnames` first.", file=sys.stderr)
                     return
                 if not matches:
                     print(f"No AS names matching {args.term!r}", file=sys.stderr)

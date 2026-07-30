@@ -4,7 +4,7 @@ from urllib.error import URLError
 
 import pytest
 
-from ipasn.downloader import Downloader
+from asinfo.downloader import Downloader
 
 RIB_FIXTURE = Path(__file__).parent / "data" / "rib.20260730.1400_first2MB.bz2"
 
@@ -60,7 +60,7 @@ def test_get_latest_rib_file_url(monkeypatch):
         seen_urls.append(url)
         return FakeResponse(html.encode("latin-1"))
 
-    monkeypatch.setattr("ipasn.downloader.urlopen", fake_urlopen)
+    monkeypatch.setattr("asinfo.downloader.urlopen", fake_urlopen)
     d = Downloader()
     url = d.get_latest_rib_file_url()
 
@@ -76,7 +76,7 @@ def test_download_latest_rib_file_requires_outfile():
 
 def test_download_latest_rib_file(monkeypatch, tmp_path):
     content = RIB_FIXTURE.read_bytes()
-    monkeypatch.setattr("ipasn.downloader.urlopen", lambda url: FakeResponse(content))
+    monkeypatch.setattr("asinfo.downloader.urlopen", lambda url: FakeResponse(content))
 
     d = Downloader()
     outfile = str(tmp_path / "out.dat")
@@ -101,7 +101,7 @@ def test_download_asnames(monkeypatch):
         '<a href="/cgi-bin/as-report?as=AS1&view=2.0">AS1  </a>LVLT-1, US\n'
         '<a href="/cgi-bin/as-report?as=AS15169&view=2.0">AS15169  </a>GOOGLE, US\n'
     )
-    monkeypatch.setattr("ipasn.downloader.urlopen", lambda url: FakeResponse(html.encode("latin-1")))
+    monkeypatch.setattr("asinfo.downloader.urlopen", lambda url: FakeResponse(html.encode("latin-1")))
 
     d = Downloader()
     result = json.loads(d.download_asnames())
@@ -120,7 +120,7 @@ def test_to_dict():
 
 def test_get_latest_rib_file_path_ftp(monkeypatch):
     fake_ftp = FakeFTP(listing=["rib.20260101.0000.bz2", "rib.20260101.0200.bz2", "README"])
-    monkeypatch.setattr("ipasn.downloader.FTP", fake_ftp)
+    monkeypatch.setattr("asinfo.downloader.FTP", fake_ftp)
 
     d = Downloader()
     path = d.get_latest_rib_file_path_ftp()
@@ -131,7 +131,7 @@ def test_get_latest_rib_file_path_ftp(monkeypatch):
 
 def test_get_latest_rib_file_path_ftp_no_files_raises(monkeypatch):
     fake_ftp = FakeFTP(listing=["README", "not-a-rib-file.txt"])
-    monkeypatch.setattr("ipasn.downloader.FTP", fake_ftp)
+    monkeypatch.setattr("asinfo.downloader.FTP", fake_ftp)
 
     d = Downloader()
     with pytest.raises(LookupError):
@@ -143,9 +143,9 @@ def test_download_latest_rib_file_https_failure_is_not_caught(monkeypatch, tmp_p
     def failing_urlopen(url):
         raise URLError("connection refused")
 
-    monkeypatch.setattr("ipasn.downloader.urlopen", failing_urlopen)
+    monkeypatch.setattr("asinfo.downloader.urlopen", failing_urlopen)
     fake_ftp = FakeFTP(listing=["rib.20260101.0000.bz2"])
-    monkeypatch.setattr("ipasn.downloader.FTP", fake_ftp)
+    monkeypatch.setattr("asinfo.downloader.FTP", fake_ftp)
 
     d = Downloader()
     outfile = str(tmp_path / "out.dat")
@@ -158,10 +158,10 @@ def test_download_latest_rib_file_https_failure_is_not_caught(monkeypatch, tmp_p
 def test_download_latest_rib_file_explicit_ftp_protocol(monkeypatch, tmp_path):
     content = RIB_FIXTURE.read_bytes()
     fake_ftp = FakeFTP(listing=["rib.20260101.0000.bz2"], content=content)
-    monkeypatch.setattr("ipasn.downloader.FTP", fake_ftp)
+    monkeypatch.setattr("asinfo.downloader.FTP", fake_ftp)
     # If HTTPS were touched at all, this would blow up the test - proves ftp
     # protocol doesn't fall back to (or start with) HTTPS either.
-    monkeypatch.delattr("ipasn.downloader.urlopen")
+    monkeypatch.delattr("asinfo.downloader.urlopen")
 
     d = Downloader()
     outfile = str(tmp_path / "out.dat")

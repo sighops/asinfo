@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 import json
 import re
 import sys
-from ipasn import mrt
+from asinfo import mrt
 
 class Downloader:
 
