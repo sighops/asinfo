@@ -13,6 +13,5 @@ It also provides facilities for downloading necessary data.
 - List of all prefixes announced by an ASN
 - List of collapsed prefixes announced by an ASN
 - Address space size announced by an ASN
-- Support for asplain, asdot, asdot+ formats
 - CLI for local only use cases
 - RIB snapshot downloads over HTTPS or FTP

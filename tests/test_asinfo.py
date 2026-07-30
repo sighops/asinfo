@@ -50,42 +50,6 @@ def test_correctness(asndb_fake):
     assert prefix is None
 
 
-def test_as_number_convert_success():
-    """Correct conversion between 32-bit and ASDOT number formats for ASNs."""
-    assert ASInfo.convert_32bit_to_asdot(71234) == "AS1.5698"
-    assert ASInfo.convert_32bit_to_asdot(131393) == "AS2.321"
-    assert ASInfo.convert_32bit_to_asdot(4294901760) == "AS65535.0"
-    assert ASInfo.convert_32bit_to_asdot(4294967295) == "AS65535.65535"
-    assert ASInfo.convert_32bit_to_asdot(0) == "AS0"
-
-    assert ASInfo.convert_asdot_to_32bit("AS1.0") == 65536
-    assert ASInfo.convert_asdot_to_32bit("AS1.5698") == 71234
-    assert ASInfo.convert_asdot_to_32bit("AS65535.65535") == 4294967295
-    assert ASInfo.convert_asdot_to_32bit("AS0") == 0
-    assert ASInfo.convert_asdot_to_32bit("AS2.321") == 131393
-
-
-@pytest.mark.parametrize("bad_asdot", ["AS]2.321", "AS2..321", "AS2.", "AS.098"])
-def test_as_number_convert_fail(bad_asdot):
-    with pytest.raises(ValueError, match="is not a valid ASDOT string"):
-        ASInfo.convert_asdot_to_32bit(bad_asdot)
-
-
-def test_as_number_convert_out_of_range():
-    # Each ASDOT component is a 16-bit field (RFC 5396) - 65536 doesn't fit.
-    with pytest.raises(ValueError, match="component greater than 65535"):
-        ASInfo.convert_asdot_to_32bit("AS1.65536")
-    with pytest.raises(ValueError, match="component greater than 65535"):
-        ASInfo.convert_asdot_to_32bit("AS65536.0")
-    # A plain ASDOT number is still capped at the 32-bit AS number space.
-    with pytest.raises(ValueError, match="out of range for a 32-bit AS number"):
-        ASInfo.convert_asdot_to_32bit("AS4294967296")
-    with pytest.raises(ValueError, match="out of range for a 32-bit AS number"):
-        ASInfo.convert_32bit_to_asdot(4294967296)
-    with pytest.raises(ValueError, match="out of range for a 32-bit AS number"):
-        ASInfo.convert_32bit_to_asdot(-1)
-
-
 def test_get_tud_prefixes(asndb):
     """Correct prefixes are returned for a predetermined AS."""
     prefixes1 = asndb.get_as_prefixes(1128)

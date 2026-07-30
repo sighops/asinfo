@@ -1,6 +1,5 @@
 import gzip
 import json
-import re
 from importlib.metadata import PackageNotFoundError, version
 from ipaddress import collapse_addresses, ip_network
 
@@ -10,10 +9,6 @@ try:
     __version__ = version("asinfo")
 except PackageNotFoundError:
     __version__ = "unknown"
-
-_ASDOT_PATTERN = re.compile(r"^AS(?P<high>\d+)(?:\.(?P<low>\d+))?\Z", re.IGNORECASE)
-_UINT16_MAX = 0xFFFF
-_UINT32_MAX = 0xFFFFFFFF
 
 
 class ASInfo:
@@ -156,34 +151,3 @@ class ASInfo:
     def __iter__(self):
         for prefix in self.records:
             yield prefix, self.records[prefix]
-
-    @staticmethod
-    def convert_32bit_to_asdot(asn):
-        """Formats a 32-bit AS number in ASDOT notation (RFC 5396):
-        "AS<high>.<low>" for AS numbers above 65535, or plain "AS<number>"
-        otherwise."""
-        if not 0 <= asn <= _UINT32_MAX:
-            raise ValueError(f"{asn} is out of range for a 32-bit AS number")
-        high, low = divmod(asn, 2**16)
-        return f"AS{low}" if high == 0 else f"AS{high}.{low}"
-
-    @staticmethod
-    def convert_asdot_to_32bit(asdot):
-        """Parses an ASDOT-notation AS number (RFC 5396) - either "AS<number>"
-        or "AS<high>.<low>", where <high> and <low> are each a 16-bit
-        component (0-65535) - into its plain 32-bit integer form."""
-        match = _ASDOT_PATTERN.match(asdot)
-        if not match:
-            raise ValueError(
-                f"{asdot!r} is not a valid ASDOT string; expected AS<number> or AS<high>.<low>"
-            )
-        high, low = match.group("high"), match.group("low")
-        if low is None:
-            asn = int(high)
-            if asn > _UINT32_MAX:
-                raise ValueError(f"{asdot!r} is out of range for a 32-bit AS number")
-            return asn
-        high, low = int(high), int(low)
-        if high > _UINT16_MAX or low > _UINT16_MAX:
-            raise ValueError(f"{asdot!r} has a component greater than {_UINT16_MAX}")
-        return (high << 16) | low
