@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import asinfo
-from asinfo import AsInfo
+from asinfo import ASInfo
 from asinfo.cli import cli as CLI
 from asinfo.cli import main
 from asinfo.downloader import Downloader
@@ -25,7 +25,7 @@ def home(tmp_path, monkeypatch):
 def cli_with_pickled_db(home):
     c = CLI()
     c.setup_local_dir_if_not_exist()
-    db = AsInfo(str(FAKE_DB_PATH))
+    db = ASInfo(str(FAKE_DB_PATH))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -37,7 +37,7 @@ def cli_with_pickled_db_and_names(home, tmp_path):
     c.setup_local_dir_if_not_exist()
     names_file = tmp_path / "asnames.json"
     names_file.write_text(json.dumps({"1": "EXAMPLE-ONE-NET", "2": "EXAMPLE-TWO-NET"}))
-    db = AsInfo(str(FAKE_DB_PATH), as_names_file=str(names_file))
+    db = ASInfo(str(FAKE_DB_PATH), as_names_file=str(names_file))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -152,7 +152,7 @@ def test_download_ribs_writes_pickle(home, monkeypatch):
 
 def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch):
     """Known bug: download_ribs() always passes default_as_names_file to
-    AsInfo(), which tries to open it unconditionally - crashes if `asinfo
+    ASInfo(), which tries to open it unconditionally - crashes if `asinfo
     download ribs` is run before `asinfo download asnames` has ever run."""
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
         Path(outfile).write_bytes(FAKE_DB_PATH.read_bytes())

@@ -16,7 +16,7 @@ _UINT16_MAX = 0xFFFF
 _UINT32_MAX = 0xFFFFFFFF
 
 
-class AsInfo:
+class ASInfo:
     """IPv4/IPv6 to ASN lookup table, built from a BGP MRT/RIB-derived IP-ASN database."""
 
     def __init__(self, db_file=None, as_names_file=None, db_string=None):
@@ -49,7 +49,7 @@ class AsInfo:
         else:
             raise ValueError("No data given: pass either db_file or db_string.")
 
-        self.asnames = self.read_asnames() if as_names_file else None
+        self.asnames = self.load_asnames() if as_names_file else None
 
         # pytricia requires the trie be frozen against further modification
         # before it can be pickled.
@@ -64,7 +64,7 @@ class AsInfo:
         self.records[prefix] = asn
         self.as_prefixes.setdefault(asn, set()).add(prefix)
 
-    def read_asnames(self):
+    def load_asnames(self):
         """Loads {ASN: name} from `self.asnames_file` (JSON, optionally gzip-compressed)."""
         if self.asnames_file.endswith(".gz"):
             with gzip.open(self.asnames_file, "rt") as f:
@@ -100,7 +100,7 @@ class AsInfo:
         or None if the ASN isn't present."""
         return self.as_prefixes.get(int(asn))
 
-    def get_as_prefixes_effective(self, asn):
+    def get_as_prefixes_collapsed(self, asn):
         """
         Returns the effective address space of the given ASN by removing all
         overlaps among its prefixes, or None if the ASN isn't present.
@@ -113,7 +113,7 @@ class AsInfo:
         return [p.compressed for p in non_overlapping_4] + [p.compressed for p in non_overlapping_6]
 
     def _get_as_size(self, asn, bits, is_v6):
-        prefixes = self.get_as_prefixes_effective(asn)
+        prefixes = self.get_as_prefixes_collapsed(asn)
         if not prefixes:
             return 0
         return sum(
@@ -133,7 +133,7 @@ class AsInfo:
     def get_as_name(self, asn):
         """Returns the AS name for `asn`, or None if unknown.
 
-        :raises RuntimeError: if this AsInfo was created without as_names_file.
+        :raises RuntimeError: if this ASInfo was created without as_names_file.
         """
         if not self.asnames:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
@@ -143,7 +143,7 @@ class AsInfo:
         """Returns [(asn, name), ...] for every AS name containing
         `name_query` (case-insensitive substring match).
 
-        :raises RuntimeError: if this AsInfo was created without as_names_file.
+        :raises RuntimeError: if this ASInfo was created without as_names_file.
         """
         if not self.asnames:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
@@ -151,7 +151,7 @@ class AsInfo:
         return [(asn, name) for asn, name in self.asnames.items() if query in name.lower()]
 
     def __repr__(self):
-        return f"AsInfo({self.db_file!r}, {self.asnames_file!r})"
+        return f"ASInfo({self.db_file!r}, {self.asnames_file!r})"
 
     def __iter__(self):
         for prefix in self.records:

@@ -112,7 +112,7 @@ class cli:
         fpath = self.default_db_file
         names = self.downloader.download_latest_rib_file(outfile=fpath)
 
-        db = asinfo.AsInfo(fpath, self.default_as_names_file)
+        db = asinfo.ASInfo(fpath, self.default_as_names_file)
         p = pickle.dumps(db)
         pfpath = self.default_pickle_file
         with open(pfpath, 'wb') as f:
