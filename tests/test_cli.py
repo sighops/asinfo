@@ -11,7 +11,7 @@ from asinfo.cli import cli as CLI
 from asinfo.cli import main
 from asinfo.downloader import Downloader
 
-FAKE_DB_PATH = Path(__file__).parent / "data" / "ipasn.fake"
+TEST_V4_DB_PATH = Path(__file__).parent / "data" / "test.db"
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def home(tmp_path, monkeypatch):
 def cli_with_pickled_db(home):
     c = CLI()
     c.setup_local_dir_if_not_exist()
-    db = ASInfo(str(FAKE_DB_PATH))
+    db = ASInfo(str(TEST_V4_DB_PATH))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -36,8 +36,8 @@ def cli_with_pickled_db_and_names(home, tmp_path):
     c = CLI()
     c.setup_local_dir_if_not_exist()
     names_file = tmp_path / "asnames.json"
-    names_file.write_text(json.dumps({"1": "EXAMPLE-ONE-NET", "2": "EXAMPLE-TWO-NET"}))
-    db = ASInfo(str(FAKE_DB_PATH), as_names_file=str(names_file))
+    names_file.write_text(json.dumps({"10": "EXAMPLE-ONE-NET", "20": "EXAMPLE-TWO-NET"}))
+    db = ASInfo(str(TEST_V4_DB_PATH), as_names_file=str(names_file))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
     return c
@@ -131,7 +131,7 @@ def test_download_asnames_writes_file(home, monkeypatch):
 
 def test_download_ribs_writes_pickle(home, monkeypatch):
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
-        Path(outfile).write_bytes(FAKE_DB_PATH.read_bytes())
+        Path(outfile).write_bytes(TEST_V4_DB_PATH.read_bytes())
 
     monkeypatch.setattr(Downloader, "download_latest_rib_file", fake_download_latest_rib_file)
     c = CLI()
@@ -147,7 +147,7 @@ def test_download_ribs_writes_pickle(home, monkeypatch):
     assert Path(c.default_pickle_file).exists()
     with open(c.default_pickle_file, "rb") as f:
         db = pickle.loads(f.read())
-    assert db.lookup("1.0.0.1") == (1, "1.0.0.0/30")
+    assert db.lookup("200.10.0.1") == (10, "200.10.0.0/30")
 
 
 def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch):
@@ -155,7 +155,7 @@ def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch)
     ASInfo(), which tries to open it unconditionally - crashes if `asinfo
     download ribs` is run before `asinfo download asnames` has ever run."""
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
-        Path(outfile).write_bytes(FAKE_DB_PATH.read_bytes())
+        Path(outfile).write_bytes(TEST_V4_DB_PATH.read_bytes())
 
     monkeypatch.setattr(Downloader, "download_latest_rib_file", fake_download_latest_rib_file)
     c = CLI()
@@ -173,7 +173,7 @@ def test_download_all_runs_asnames_before_ribs(home, monkeypatch):
     monkeypatch.setattr(Downloader, "download_asnames", lambda self: json.dumps({"1": "TEST-AS"}))
 
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
-        Path(outfile).write_bytes(FAKE_DB_PATH.read_bytes())
+        Path(outfile).write_bytes(TEST_V4_DB_PATH.read_bytes())
 
     monkeypatch.setattr(Downloader, "download_latest_rib_file", fake_download_latest_rib_file)
 
@@ -185,15 +185,15 @@ def test_download_all_runs_asnames_before_ribs(home, monkeypatch):
 
 
 def test_lookup_v4(cli_with_pickled_db, capsys):
-    cli_with_pickled_db.lookup(Namespace(term="1.0.0.1"))
-    assert capsys.readouterr().out.strip() == "1, 1.0.0.0/30"
+    cli_with_pickled_db.lookup(Namespace(term="200.10.0.1"))
+    assert capsys.readouterr().out.strip() == "10, 200.10.0.0/30"
 
 
 def test_lookup_asn_without_names_loaded(cli_with_pickled_db, capsys):
     """No AS-names file was loaded into this pickled db - lookup should
     still work, just without a name line."""
-    cli_with_pickled_db.lookup(Namespace(term="AS1"))
-    assert capsys.readouterr().out.strip() == "1.0.0.0/30"
+    cli_with_pickled_db.lookup(Namespace(term="AS10"))
+    assert capsys.readouterr().out.strip() == "200.10.0.0/30"
 
 
 def test_lookup_asn_unknown_does_not_crash(cli_with_pickled_db, capsys):
@@ -204,15 +204,15 @@ def test_lookup_asn_unknown_does_not_crash(cli_with_pickled_db, capsys):
 
 
 def test_lookup_asn_shows_name_when_available(cli_with_pickled_db_and_names, capsys):
-    cli_with_pickled_db_and_names.lookup(Namespace(term="AS1"))
+    cli_with_pickled_db_and_names.lookup(Namespace(term="AS10"))
     out = capsys.readouterr().out
-    assert "AS1  EXAMPLE-ONE-NET" in out
-    assert "1.0.0.0/30" in out
+    assert "AS10  EXAMPLE-ONE-NET" in out
+    assert "200.10.0.0/30" in out
 
 
 def test_lookup_name_finds_matches(cli_with_pickled_db_and_names, capsys):
     cli_with_pickled_db_and_names.lookup(Namespace(term="example-one"))
-    assert "AS1  EXAMPLE-ONE-NET" in capsys.readouterr().out
+    assert "AS10  EXAMPLE-ONE-NET" in capsys.readouterr().out
 
 
 def test_lookup_name_no_matches(cli_with_pickled_db_and_names, capsys):

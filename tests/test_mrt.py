@@ -1,14 +1,16 @@
-from os import path
+from pathlib import Path
 
 import pytest
 
 from asinfo.mrt import MrtFormatError, parse_mrt_file
 
-RIB_TD1_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20080501.0644_firstMB.bz2")
-RIB_TD2_PARTDUMP = path.join(path.dirname(__file__), "data/rib.20260730.1400_first2MB.bz2")
-RIB6_TD2_PARTDUMP = path.join(path.dirname(__file__), "data/rib6.20260730.1400_firstMB.bz2")
-RIB_TD2_RECORD_FAIL_PARTDUMP = path.join(path.dirname(__file__),
-                                         "data/bview.20140112.1600_3samples.bz2")
+DATA_DIR = Path(__file__).parent / "data"
+# parse_mrt_file() takes a str path (or an already-open binary file object),
+# not a Path, so these are stringified here rather than at each call site.
+RIB_TD1_PARTDUMP = str(DATA_DIR / "rib.20080501.0644_firstMB.bz2")
+RIB_TD2_PARTDUMP = str(DATA_DIR / "rib.20260730.1400_first2MB.bz2")
+RIB6_TD2_PARTDUMP = str(DATA_DIR / "rib6.20260730.1400_firstMB.bz2")
+RIB_TD2_RECORD_FAIL_PARTDUMP = str(DATA_DIR / "bview.20140112.1600_3samples.bz2")
 
 
 def assert_known_origins(converted, expected):

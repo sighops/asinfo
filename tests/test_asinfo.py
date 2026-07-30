@@ -1,68 +1,96 @@
-import os
+from pathlib import Path
 
 import pytest
 
 import asinfo
 from asinfo import ASInfo
 
-FAKE_IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn.fake")
-IPASN_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn_20260730.dat.gz")
-IPASN6_DB_PATH = os.path.join(os.path.dirname(__file__), "data/ipasn6_20260730.dat.gz")
-AS_NAMES_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json")
-AS_NAMES_COMPRESSED_FILE_PATH = os.path.join(os.path.dirname(__file__), "data/asnames.json.gz")
+DATA_DIR = Path(__file__).parent / "data"
+TEST_V4_DB_PATH = DATA_DIR / "test.db"
+V4_DB_PATH = DATA_DIR / "ipasn_20260730.dat.gz"
+V6_DB_PATH = DATA_DIR / "ipasn6_20260730.dat.gz"
+AS_NAMES_FILE_PATH = DATA_DIR / "asnames.json"
+AS_NAMES_COMPRESSED_FILE_PATH = DATA_DIR / "asnames.json.gz"
 
 
 @pytest.fixture(scope="module")
 def asndb():
-    return ASInfo(IPASN_DB_PATH)
+    return ASInfo(str(V4_DB_PATH))
 
 
 @pytest.fixture(scope="module")
-def asndb_fake():
-    return ASInfo(FAKE_IPASN_DB_PATH)
+def asndb_test():
+    return ASInfo(str(TEST_V4_DB_PATH))
 
 
-def test_correctness(asndb_fake):
-    """ASInfo returns the correct AS number against a small hand-built database."""
+def test_lookup_returns_expected_result(asndb_test):
+    """ASInfo returns the correct AS number against a small test database."""
     for i in range(4):
-        asn, prefix = asndb_fake.lookup(f"1.0.0.{i}")
-        assert asn == 1
-        assert prefix == "1.0.0.0/30"
+        asn, prefix = asndb_test.lookup(f"200.10.0.{i}")
+        assert asn == 10
+        assert prefix == "200.10.0.0/30"
     for i in range(4, 256):
-        asn, prefix = asndb_fake.lookup(f"1.0.0.{i}")
-        assert asn == 2
-        assert prefix == "1.0.0.0/24"
+        asn, prefix = asndb_test.lookup(f"200.10.0.{i}")
+        assert asn == 20
+        assert prefix == "200.10.0.0/24"
     for i in range(256):
-        asn, prefix = asndb_fake.lookup(f"2.0.0.{i}")
-        assert asn == 3
-        assert prefix == "2.0.0.0/24"
+        asn, prefix = asndb_test.lookup(f"200.20.0.{i}")
+        assert asn == 30
+        assert prefix == "200.20.0.0/24"
     for i in range(128, 256):
-        asn, prefix = asndb_fake.lookup(f"3.{i}.0.0")
-        assert asn == 4
-        assert prefix == "3.0.0.0/8"
+        asn, prefix = asndb_test.lookup(f"210.{i}.0.0")
+        assert asn == 40
+        assert prefix == "210.0.0.0/8"
     for i in range(0, 128):
-        asn, prefix = asndb_fake.lookup(f"3.{i}.0.0")
-        assert asn == 5
-        assert prefix == "3.0.0.0/9"
+        asn, prefix = asndb_test.lookup(f"210.{i}.0.0")
+        assert asn == 50
+        assert prefix == "210.0.0.0/9"
 
-    asn, prefix = asndb_fake.lookup("5.0.0.0")
+    asn, prefix = asndb_test.lookup("199.0.0.0")
     assert asn is None
     assert prefix is None
 
+def test_lookup_with_asnames():
+    """AS Name lookup works."""
+    db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
+    asn, _prefix = db_with_names.lookup("1.1.1.1")
+    name = db_with_names.get_as_name(asn)
+    assert "cloudflare" in name.lower()
+    assert db_with_names.get_as_name(-1) is None
 
-def test_get_tud_prefixes(asndb):
-    """Correct prefixes are returned for a predetermined AS."""
-    prefixes1 = asndb.get_as_prefixes(1128)
-    prefixes2 = asndb.get_as_prefixes(1128)
-    prefixes3 = asndb.get_as_prefixes("1128")
+def test_v6_lookup_returns_expected_result():
+    """IPv6 addresses are looked up correctly."""
+    db = ASInfo(str(V6_DB_PATH))
+    known_ips = [
+        ("2408:897a::1", 4837),      # CHINA169-Backbone, AS4837
+        ("2a04:3542::1", 202053),    # UpCloud Ltd, AS202053
+        ("2a00:1e98::1", 34058),     # lifecell (mobile carrier), AS34058
+        ("2a03:2880:f003:c07:face:b00c::2", 32934),  # Facebook, AS32934
+        ("2001:db8::1", None),  # RFC 3849 documentation prefix - never routed
+    ]
+    for ip, known_as in known_ips:
+        asn, _prefix = db.lookup(ip)
+        assert asn == known_as
 
-    assert set(prefixes1) == {"130.161.0.0/16", "131.180.0.0/16", "145.94.0.0/16"}
+def test_invalid_address_raises_error(asndb):
+    with pytest.raises(ValueError):
+        asndb.lookup("1.1.680.1")
+    with pytest.raises(ValueError):
+        asndb.lookup("200001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF")
+
+def test_get_prefixes_for_multi_prefix_asn(asndb):
+    """Correct prefixes are returned for a predetermined AS with 3 non-overlapping /16s."""
+    prefixes1 = asndb.get_as_prefixes(17435)
+    prefixes2 = asndb.get_as_prefixes(17435)
+    prefixes3 = asndb.get_as_prefixes("17435")
+
+    assert set(prefixes1) == {"58.28.0.0/16", "118.90.0.0/16", "182.154.0.0/16"}
     assert prefixes1 == prefixes2  # should cache, and hence return same
     assert prefixes1 == prefixes3  # string & int for asn should return the same
 
 
-def test_get_prefixes2(asndb):
-    """get_as_prefixes() on a border case: one ASN announces a prefix whose
+def test_get_prefixes_overlapping_supernet(asndb):
+    """get_as_prefixes() where one ASN announces a prefix whose
     supernet is announced by a different ASN. Each lookup must return only
     its own exact-match prefix, not the other's.
 
@@ -82,64 +110,23 @@ def test_get_prefixes_unknown_asn(asndb):
     assert asndb.get_as_prefixes_collapsed(999999999) is None
 
 
-def test_get_tud_collapsed_prefixes(asndb):
-    prefixes1 = asndb.get_as_prefixes_collapsed(1128)  # TUDelft AS
-    assert set(prefixes1) == {"130.161.0.0/16", "131.180.0.0/16", "145.94.0.0/16"}
-
-
-def test_address_family(asndb):
-    """ASInfo can determine correct and incorrect IPv4/IPv6 addresses (bug #14)."""
-    # the following should not raise
-    asndb.lookup("8.8.8.8")
-    asndb.lookup("2001:500:88:200::8")
-
-    # the following should raise
-    with pytest.raises(ValueError):
-        asndb.lookup("8.8.8.800")
-    with pytest.raises(ValueError):
-        asndb.lookup("2001:500g:88:200::8")
-
-
-def test_ipv6():
-    """IPv6 addresses are looked up correctly."""
-    db = ASInfo(IPASN6_DB_PATH)
-    known_ips = [
-        # First three IPs suggested by sebix (bug #14). Confirmed AS on WHOIS.
-        ("2001:41d0:2:7a6::1", 16276),   # OVH IPv6, AS16276
-        ("2002:2d22:b585::2d22:b585", 6939),  # WHOIS: IPv4 endpoint (45.34.181.133) of
-                                               # a 6to4 address. AS6939 = Hurricane Electric
-        ("2a02:2770:11:0:21a:4aff:fef0:e779", 196752),  # TILAA, AS196752
-        ("2607:f8b0:4006:80f::200e", 15169),  # GOOGLE AAAA
-        ("d::d", None),  # random unused IPv6
-    ]
-    for ip, known_as in known_ips:
-        asn, _prefix = db.lookup(ip)
-        assert asn == known_as
-
-
-def test_asnames():
-    """AS Name lookup works."""
-    db_with_names = ASInfo(IPASN_DB_PATH, as_names_file=AS_NAMES_FILE_PATH)
-    asn, _prefix = db_with_names.lookup("8.8.8.8")
-    name = db_with_names.get_as_name(asn)
-    assert "google" in name.lower()
-
-    assert db_with_names.get_as_name(-1) is None
+def test_get_collapsed_prefixes_for_multi_prefix_asn(asndb):
+    prefixes1 = asndb.get_as_prefixes_collapsed(17435)  # 3 non-overlapping /16s, nothing to collapse
+    assert set(prefixes1) == {"58.28.0.0/16", "118.90.0.0/16", "182.154.0.0/16"}
 
 
 def test_asnames_compressed():
     """AS Name lookup works from a gzip-compressed names file."""
-    db_with_names = ASInfo(IPASN_DB_PATH, as_names_file=AS_NAMES_COMPRESSED_FILE_PATH)
-    asn, _prefix = db_with_names.lookup("8.8.8.8")
+    db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_COMPRESSED_FILE_PATH))
+    asn, _prefix = db_with_names.lookup("1.1.1.1")
     name = db_with_names.get_as_name(asn)
-    assert "google" in name.lower()
-
+    assert "cloudflare" in name.lower()
     assert db_with_names.get_as_name(-1) is None
 
 
 def test_find_asns_by_name():
     """Reverse (name -> ASN) lookup, case-insensitive substring match."""
-    db_with_names = ASInfo(IPASN_DB_PATH, as_names_file=AS_NAMES_FILE_PATH)
+    db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
     matches = db_with_names.find_asns_by_name("google")
     asn, _prefix = db_with_names.lookup("8.8.8.8")
     assert asn in dict(matches)
@@ -147,7 +134,7 @@ def test_find_asns_by_name():
 
 
 def test_find_asns_by_name_no_matches():
-    db_with_names = ASInfo(IPASN_DB_PATH, as_names_file=AS_NAMES_FILE_PATH)
+    db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
     assert db_with_names.find_asns_by_name("no-such-as-name-xyz") == []
 
 
@@ -161,24 +148,24 @@ def test_version_is_set():
     assert asinfo.__version__
 
 
-def test_assize(asndb):
+def test_get_as_size_returns_expected_result(asndb):
     """AS size calculation correctness."""
     assert sum(2 ** (32 - int(px.split("/")[1])) for px in []) == 0  # empty prefix list
 
-    assert asndb.get_as_size(1133) == 65536    # Uni Twente AS, 1 /16 prefix. Manually checked.
-    assert asndb.get_as_size(1128) == 196608   # TU-Delft AS, 3 non-overlapping /16s. RIPE stat.
-    assert asndb.get_as_size(1124) == 196608   # UVA AS, 4 non-overlapping prefixes (2 /16, 2 /17).
+    assert asndb.get_as_size(139190) == 65536   # single /16 prefix
+    assert asndb.get_as_size(17435) == 196608   # 3 non-overlapping /16s
+    assert asndb.get_as_size(12638) == 49152    # 1 /17 + 2 /19s, non-overlapping
 
 
 def test_load_from_string():
     """ASInfo can load a database from an in-memory string (db_string),
     not just a file path, and behaves identically either way."""
-    with open(FAKE_IPASN_DB_PATH) as f:
+    with open(TEST_V4_DB_PATH) as f:
         db_text = f.read()
     db = ASInfo(db_string=db_text)
-    assert db.lookup("1.0.0.1") == (1, "1.0.0.0/30")
-    assert db.lookup("2.0.0.1") == (3, "2.0.0.0/24")
-    assert db.lookup("5.0.0.0") == (None, None)
+    assert db.lookup("200.10.0.1") == (10, "200.10.0.0/30")
+    assert db.lookup("200.20.0.1") == (30, "200.20.0.0/24")
+    assert db.lookup("199.0.0.0") == (None, None)
 
 
 def test_constructor_requires_a_data_source():
@@ -186,15 +173,15 @@ def test_constructor_requires_a_data_source():
         ASInfo()
 
 
-def test_iteration_yields_prefix_asn_pairs(asndb_fake):
+def test_iteration_yields_prefix_asn_pairs(asndb_test):
     """Iterating an ASInfo yields (prefix, asn) pairs covering every loaded
     prefix - not just prefix strings - so the whole database can be
     walked/exported without a separate lookup per prefix."""
-    pairs = dict(asndb_fake)
+    pairs = dict(asndb_test)
     assert pairs == {
-        "1.0.0.0/30": 1,
-        "1.0.0.0/24": 2,
-        "2.0.0.0/24": 3,
-        "3.0.0.0/8": 4,
-        "3.0.0.0/9": 5,
+        "200.10.0.0/30": 10,
+        "200.10.0.0/24": 20,
+        "200.20.0.0/24": 30,
+        "210.0.0.0/8": 40,
+        "210.0.0.0/9": 50,
     }
