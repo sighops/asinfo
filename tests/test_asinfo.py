@@ -163,6 +163,100 @@ def test_get_as_size_returns_expected_result(asndb):
     assert asndb.get_as_size(12638) == 49152  # 1 /17 + 2 /19s, non-overlapping
 
 
+def test_get_as_summary():
+    """Full-data case: real ASN with both prefixes and a name loaded."""
+    db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
+    summary = db_with_names.get_as_summary(17435)
+
+    assert summary["asn"] == 17435
+    assert summary["as_name"] == "VNGSL-AS-NZ"
+    assert summary["description"] == "Vodafone Next Generation Services Limited"
+    assert summary["as_country"] == "NZ"
+    assert summary["count_addresses"] == 196608
+    assert set(summary["prefixes"]["announced"]) == {
+        "58.28.0.0/16",
+        "118.90.0.0/16",
+        "182.154.0.0/16",
+    }
+    assert set(summary["prefixes"]["collapsed"]) == {
+        "58.28.0.0/16",
+        "118.90.0.0/16",
+        "182.154.0.0/16",
+    }
+    assert summary["prefixes"]["announced"] == sorted(summary["prefixes"]["announced"])
+
+
+def test_get_as_summary_no_country_in_name(tmp_path):
+    """A name with no comma (e.g. this project's own synthetic fixtures) yields
+    as_country=None rather than raising or guessing."""
+    names_file = tmp_path / "asnames.json"
+    names_file.write_text('{"10": "EXAMPLE-ONE-NET"}')
+    db = ASInfo(str(TEST_V4_DB_PATH), as_names_file=str(names_file))
+
+    summary = db.get_as_summary(10)
+
+    assert summary["as_name"] == "EXAMPLE-ONE-NET"
+    assert summary["description"] is None
+    assert summary["as_country"] is None
+    assert summary["count_addresses"] is not None  # prefix data is unaffected
+
+
+def test_get_as_summary_names_not_loaded(asndb):
+    """Without an as_names_file, name/country are None but prefix/size data
+    still works - this method doesn't propagate get_as_name()'s RuntimeError."""
+    summary = asndb.get_as_summary(17435)
+
+    assert summary["as_name"] is None
+    assert summary["description"] is None
+    assert summary["as_country"] is None
+    assert summary["count_addresses"] == 196608
+    assert set(summary["prefixes"]["announced"]) == {
+        "58.28.0.0/16",
+        "118.90.0.0/16",
+        "182.154.0.0/16",
+    }
+
+
+def test_get_as_summary_unknown_asn_raises(asndb_test):
+    """An ASN with neither prefixes nor a name entry is a genuine unknown."""
+    with pytest.raises(ValueError, match="AS999"):
+        asndb_test.get_as_summary(999)
+
+
+def test_get_as_summary_known_via_name_only(tmp_path):
+    """An ASN registered in the names file but announcing no prefixes isn't
+    an error - the prefix/size fields come back None instead."""
+    names_file = tmp_path / "asnames.json"
+    names_file.write_text('{"99": "GHOST-NET, ZZ"}')
+    db = ASInfo(str(TEST_V4_DB_PATH), as_names_file=str(names_file))
+
+    summary = db.get_as_summary(99)
+
+    assert summary["as_name"] == "GHOST-NET"
+    assert summary["description"] is None
+    assert summary["as_country"] == "ZZ"
+    assert summary["count_addresses"] is None
+    assert summary["prefixes"] == {"announced": None, "collapsed": None}
+
+
+def test_parse_as_name_handles_multiple_dashes():
+    """The description can legitimately contain " - " itself (~1.5% of real
+    AS names do) - only the first occurrence separates as_name from
+    description, matching RPSL's as-name being just the short handle."""
+    raw = "NORTHROP-AS - Northrop Grumman Corporation - Automation Sciences Laboratory, US"
+    as_name, description, country = ASInfo._parse_as_name(raw)
+    assert as_name == "NORTHROP-AS"
+    assert description == "Northrop Grumman Corporation - Automation Sciences Laboratory"
+    assert country == "US"
+
+
+def test_parse_as_name_no_separators():
+    as_name, description, country = ASInfo._parse_as_name("EXAMPLE-ONE-NET")
+    assert as_name == "EXAMPLE-ONE-NET"
+    assert description is None
+    assert country is None
+
+
 def test_load_from_string():
     """ASInfo can load a database from an in-memory string (db_string),
     not just a file path, and behaves identically either way."""

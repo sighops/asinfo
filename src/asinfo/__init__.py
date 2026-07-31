@@ -5,6 +5,7 @@ import json
 from collections.abc import Iterator
 from importlib.metadata import PackageNotFoundError, version
 from ipaddress import IPv4Network, IPv6Network, collapse_addresses
+from typing import TypedDict
 
 import pytricia
 
@@ -12,6 +13,20 @@ try:
     __version__ = version("asinfo")
 except PackageNotFoundError:
     __version__ = "unknown"
+
+
+class PrefixSummary(TypedDict):
+    announced: list[str] | None
+    collapsed: list[str] | None
+
+
+class ASSummary(TypedDict):
+    asn: int
+    as_name: str | None
+    description: str | None
+    as_country: str | None
+    count_addresses: int | None
+    prefixes: PrefixSummary
 
 
 class ASInfo:
@@ -153,6 +168,81 @@ class ASInfo:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
         query = name_query.lower()
         return [(asn, name) for asn, name in self.asnames.items() if query in name.lower()]
+
+    @staticmethod
+    def _parse_as_name(raw_name: str) -> tuple[str, str | None, str | None]:
+        """Splits a raw AS-name string ("<as-name> - <description>, <CC>")
+        into (as_name, description, country).
+
+        `as_name` is the short RPSL-style handle (RFC 2622/4012's `as-name`
+        attribute syntax) - everything up to the *first* " - ". This must be
+        a first-occurrence split, not last: ~1.5% of real entries contain
+        " - " more than once (e.g. "NORTHROP-AS - Northrop Grumman
+        Corporation - Automation Sciences Laboratory, US"), and the extra
+        occurrences are part of the description, not additional structure.
+        `country` is the segment after the *last* comma (verified against
+        every entry in a real AS-names dataset: always present when there's
+        a comma at all, and always exactly 2 characters).
+
+        Any part not present in `raw_name` (e.g. this project's own
+        synthetic test fixtures, which have neither a " - " nor a country)
+        comes back None - except `as_name`, which falls back to the whole
+        (trimmed) string when there's nothing to split on.
+        """
+        name_and_description = raw_name
+        country = None
+        if "," in raw_name:
+            name_and_description, country = raw_name.rsplit(",", 1)
+            name_and_description = name_and_description.strip()
+            country = country.strip()
+
+        if " - " in name_and_description:
+            as_name, description = name_and_description.split(" - ", 1)
+            return as_name.strip(), description.strip(), country
+        return name_and_description, None, country
+
+    def get_as_summary(self, asn: int | str) -> ASSummary:
+        """Returns a structured summary of everything known about `asn`:
+        name/country (if AS names were loaded and this ASN has one), address
+        count, and both the full and collapsed prefix lists.
+
+        An ASN known via only one data source (e.g. it has a registered name
+        but currently announces no prefixes, or vice versa) isn't an error -
+        the fields with no data come back None rather than 0/empty.
+
+        :raises ValueError: if `asn` has neither announced prefixes nor a
+            name entry - i.e. this database has no data on it at all.
+        """
+        asn = int(asn)
+        prefixes = self.get_as_prefixes(asn)
+        has_name_entry = self.asnames is not None and asn in self.asnames
+
+        if prefixes is None and not has_name_entry:
+            raise ValueError(f"AS{asn} is not present in this database")
+
+        as_name = description = as_country = None
+        if self.asnames is not None:
+            raw_name = self.asnames.get(asn)
+            if raw_name is not None:
+                as_name, description, as_country = self._parse_as_name(raw_name)
+
+        if prefixes is None:
+            count_addresses = None
+            announced = None
+            collapsed = None
+        else:
+            count_addresses = self.get_as_size(asn)
+            announced = sorted(prefixes)
+            collapsed = self.get_as_prefixes_collapsed(asn)
+
+        return {
+            "asn": asn,
+            "as_name": as_name,
+            "description": description,
+            "as_country": as_country,
+            "count_addresses": count_addresses,
+            "prefixes": {"announced": announced, "collapsed": collapsed},
+        }
 
     def __repr__(self) -> str:
         return f"ASInfo({self.db_file!r}, {self.asnames_file!r})"
