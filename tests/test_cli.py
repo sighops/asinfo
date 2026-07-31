@@ -151,7 +151,7 @@ def test_download_ribs_writes_pickle(home, monkeypatch):
     assert Path(c.default_pickle_file).exists()
     with open(c.default_pickle_file, "rb") as f:
         db = pickle.loads(f.read())
-    assert db.lookup("200.10.0.1") == (10, "200.10.0.0/30")
+    assert db.get_asn_prefix_from_ip("200.10.0.1") == (10, "200.10.0.0/30")
 
 
 def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch):

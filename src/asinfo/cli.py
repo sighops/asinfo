@@ -136,7 +136,7 @@ class CLI:
         term_type = self.detect_term_type(args.term)
         match term_type:
             case "v4" | "v6":
-                asn, prefix = db.lookup(args.term)
+                asn, prefix = db.get_asn_prefix_from_ip(args.term)
                 print(f"{asn}, {prefix}")
             case "asn":
                 term = int(args.term.lower().strip("as"))

@@ -97,7 +97,7 @@ class ASInfo:
         except ValueError:
             raise ValueError("AS names file contains a non-numeric ASN") from None
 
-    def lookup(self, ip: str) -> tuple[int, str] | tuple[None, None]:
+    def get_asn_prefix_from_ip(self, ip: str) -> tuple[int, str] | tuple[None, None]:
         """
         Returns the AS number and best-matching prefix for the given IP address.
 

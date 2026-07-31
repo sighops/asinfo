@@ -26,27 +26,27 @@ def asndb_test():
 def test_lookup_returns_expected_result(asndb_test):
     """ASInfo returns the correct AS number against a small test database."""
     for i in range(4):
-        asn, prefix = asndb_test.lookup(f"200.10.0.{i}")
+        asn, prefix = asndb_test.get_asn_prefix_from_ip(f"200.10.0.{i}")
         assert asn == 10
         assert prefix == "200.10.0.0/30"
     for i in range(4, 256):
-        asn, prefix = asndb_test.lookup(f"200.10.0.{i}")
+        asn, prefix = asndb_test.get_asn_prefix_from_ip(f"200.10.0.{i}")
         assert asn == 20
         assert prefix == "200.10.0.0/24"
     for i in range(256):
-        asn, prefix = asndb_test.lookup(f"200.20.0.{i}")
+        asn, prefix = asndb_test.get_asn_prefix_from_ip(f"200.20.0.{i}")
         assert asn == 30
         assert prefix == "200.20.0.0/24"
     for i in range(128, 256):
-        asn, prefix = asndb_test.lookup(f"210.{i}.0.0")
+        asn, prefix = asndb_test.get_asn_prefix_from_ip(f"210.{i}.0.0")
         assert asn == 40
         assert prefix == "210.0.0.0/8"
     for i in range(0, 128):
-        asn, prefix = asndb_test.lookup(f"210.{i}.0.0")
+        asn, prefix = asndb_test.get_asn_prefix_from_ip(f"210.{i}.0.0")
         assert asn == 50
         assert prefix == "210.0.0.0/9"
 
-    asn, prefix = asndb_test.lookup("199.0.0.0")
+    asn, prefix = asndb_test.get_asn_prefix_from_ip("199.0.0.0")
     assert asn is None
     assert prefix is None
 
@@ -54,7 +54,7 @@ def test_lookup_returns_expected_result(asndb_test):
 def test_lookup_with_asnames():
     """AS Name lookup works."""
     db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
-    asn, _prefix = db_with_names.lookup("1.1.1.1")
+    asn, _prefix = db_with_names.get_asn_prefix_from_ip("1.1.1.1")
     name = db_with_names.get_as_name(asn)
     assert "cloudflare" in name.lower()
     assert db_with_names.get_as_name(-1) is None
@@ -71,15 +71,15 @@ def test_v6_lookup_returns_expected_result():
         ("2001:db8::1", None),  # RFC 3849 documentation prefix - never routed
     ]
     for ip, known_as in known_ips:
-        asn, _prefix = db.lookup(ip)
+        asn, _prefix = db.get_asn_prefix_from_ip(ip)
         assert asn == known_as
 
 
 def test_invalid_address_raises_error(asndb):
     with pytest.raises(ValueError):
-        asndb.lookup("1.1.680.1")
+        asndb.get_asn_prefix_from_ip("1.1.680.1")
     with pytest.raises(ValueError):
-        asndb.lookup("200001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF")
+        asndb.get_asn_prefix_from_ip("200001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF")
 
 
 def test_get_prefixes_for_multi_prefix_asn(asndb):
@@ -124,7 +124,7 @@ def test_get_collapsed_prefixes_for_multi_prefix_asn(asndb):
 def test_asnames_compressed():
     """AS Name lookup works from a gzip-compressed names file."""
     db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_COMPRESSED_FILE_PATH))
-    asn, _prefix = db_with_names.lookup("1.1.1.1")
+    asn, _prefix = db_with_names.get_asn_prefix_from_ip("1.1.1.1")
     name = db_with_names.get_as_name(asn)
     assert "cloudflare" in name.lower()
     assert db_with_names.get_as_name(-1) is None
@@ -134,7 +134,7 @@ def test_find_asns_by_name():
     """Reverse (name -> ASN) lookup, case-insensitive substring match."""
     db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
     matches = db_with_names.find_asns_by_name("google")
-    asn, _prefix = db_with_names.lookup("8.8.8.8")
+    asn, _prefix = db_with_names.get_asn_prefix_from_ip("8.8.8.8")
     assert asn in dict(matches)
     assert all("google" in name.lower() for _asn, name in matches)
 
@@ -263,9 +263,9 @@ def test_load_from_string():
     with open(TEST_V4_DB_PATH) as f:
         db_text = f.read()
     db = ASInfo(db_string=db_text)
-    assert db.lookup("200.10.0.1") == (10, "200.10.0.0/30")
-    assert db.lookup("200.20.0.1") == (30, "200.20.0.0/24")
-    assert db.lookup("199.0.0.0") == (None, None)
+    assert db.get_asn_prefix_from_ip("200.10.0.1") == (10, "200.10.0.0/30")
+    assert db.get_asn_prefix_from_ip("200.20.0.1") == (30, "200.20.0.0/24")
+    assert db.get_asn_prefix_from_ip("199.0.0.0") == (None, None)
 
 
 def test_constructor_requires_a_data_source():

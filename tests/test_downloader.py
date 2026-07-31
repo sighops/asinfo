@@ -200,7 +200,7 @@ def test_build_asinfo(monkeypatch):
 
     db = Downloader().build_asinfo()
 
-    asn, prefix = db.lookup("1.0.4.0")
+    asn, prefix = db.get_asn_prefix_from_ip("1.0.4.0")
     assert asn == 38803
     assert prefix == "1.0.4.0/24"
     assert db.get_as_name(15169) == "GOOGLE, US"
@@ -213,7 +213,7 @@ def test_build_asinfo_without_names(monkeypatch):
 
     db = Downloader().build_asinfo(include_names=False)
 
-    asn, _prefix = db.lookup("1.0.4.0")
+    asn, _prefix = db.get_asn_prefix_from_ip("1.0.4.0")
     assert asn == 38803
     with pytest.raises(RuntimeError):
         db.get_as_name(15169)
