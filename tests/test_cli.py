@@ -7,8 +7,7 @@ import pytest
 
 import asinfo
 from asinfo import ASInfo
-from asinfo.cli import cli as CLI
-from asinfo.cli import main
+from asinfo.cli import CLI, main
 from asinfo.downloader import Downloader
 
 TEST_V4_DB_PATH = Path(__file__).parent / "data" / "test.db"
@@ -74,14 +73,17 @@ def test_setup_local_dir_if_not_exist_is_idempotent(home):
     assert Path(c.default_path).is_dir()
 
 
-@pytest.mark.parametrize("term,expected", [
-    ("8.8.8.8", "v4"),
-    ("2001:4860:4860::8888", "v6"),
-    ("AS15169", "asn"),
-    ("as15169", "asn"),
-    ("15169", "name"),  # bare numeric ASNs (no "AS" prefix) aren't recognized - known gap
-    ("google", "name"),
-])
+@pytest.mark.parametrize(
+    "term,expected",
+    [
+        ("8.8.8.8", "v4"),
+        ("2001:4860:4860::8888", "v6"),
+        ("AS15169", "asn"),
+        ("as15169", "asn"),
+        ("15169", "name"),  # bare numeric ASNs (no "AS" prefix) aren't recognized - known gap
+        ("google", "name"),
+    ],
+)
 def test_detect_term_type(home, term, expected):
     c = CLI()
     assert c.detect_term_type(term) == expected
@@ -122,7 +124,9 @@ def test_argparse_wiring_lookup(home):
 
 
 def test_download_asnames_writes_file(home, monkeypatch):
-    monkeypatch.setattr(Downloader, "download_asnames", lambda self: json.dumps({"15169": "GOOGLE"}))
+    monkeypatch.setattr(
+        Downloader, "download_asnames", lambda self: json.dumps({"15169": "GOOGLE"})
+    )
     c = CLI()
     c.download(Namespace(type="asnames"))
     content = json.loads(Path(c.default_as_names_file).read_text())
@@ -154,6 +158,7 @@ def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch)
     """Known bug: download_ribs() always passes default_as_names_file to
     ASInfo(), which tries to open it unconditionally - crashes if `asinfo
     download ribs` is run before `asinfo download asnames` has ever run."""
+
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
         Path(outfile).write_bytes(TEST_V4_DB_PATH.read_bytes())
 
