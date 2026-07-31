@@ -1,4 +1,5 @@
 import json
+import tempfile
 from pathlib import Path
 from urllib.error import URLError
 
@@ -177,3 +178,62 @@ def test_download_latest_rib_file_unknown_protocol_raises(tmp_path):
     outfile = str(tmp_path / "out.dat")
     with pytest.raises(ValueError, match="unknown protocol"):
         d.download_latest_rib_file(outfile=outfile, protocol="gopher")
+
+
+def _fake_urlopen_for_build_asinfo(with_names=True):
+    listing_html = '<a href="rib.20260101.0200.bz2">rib.20260101.0200.bz2</a>\n'
+    rib_content = RIB_FIXTURE.read_bytes()
+    asnames_html = '<a href="/cgi-bin/as-report?as=AS15169&view=2.0">AS15169  </a>GOOGLE, US\n'
+
+    def fake_urlopen(url):
+        if with_names and "cidr-report.org" in url:
+            return FakeResponse(asnames_html.encode("latin-1"))
+        if url.endswith(".bz2"):
+            return FakeResponse(rib_content)
+        return FakeResponse(listing_html.encode("latin-1"))
+
+    return fake_urlopen
+
+
+def test_build_asinfo(monkeypatch):
+    monkeypatch.setattr("asinfo.downloader.urlopen", _fake_urlopen_for_build_asinfo())
+
+    db = Downloader().build_asinfo()
+
+    asn, prefix = db.lookup("1.0.4.0")
+    assert asn == 38803
+    assert prefix == "1.0.4.0/24"
+    assert db.get_as_name(15169) == "GOOGLE, US"
+
+
+def test_build_asinfo_without_names(monkeypatch):
+    monkeypatch.setattr(
+        "asinfo.downloader.urlopen", _fake_urlopen_for_build_asinfo(with_names=False)
+    )
+
+    db = Downloader().build_asinfo(include_names=False)
+
+    asn, _prefix = db.lookup("1.0.4.0")
+    assert asn == 38803
+    with pytest.raises(RuntimeError):
+        db.get_as_name(15169)
+
+
+def test_build_asinfo_cleans_up_temp_dir(monkeypatch):
+    """No download/conversion artifacts are left on disk after build_asinfo() returns."""
+    monkeypatch.setattr("asinfo.downloader.urlopen", _fake_urlopen_for_build_asinfo())
+
+    seen_tmp_dirs = []
+    real_temporary_directory = tempfile.TemporaryDirectory
+
+    def spying_temporary_directory(*args, **kwargs):
+        td = real_temporary_directory(*args, **kwargs)
+        seen_tmp_dirs.append(td.name)
+        return td
+
+    monkeypatch.setattr("asinfo.downloader.tempfile.TemporaryDirectory", spying_temporary_directory)
+
+    Downloader().build_asinfo()
+
+    assert seen_tmp_dirs
+    assert not Path(seen_tmp_dirs[0]).exists()
