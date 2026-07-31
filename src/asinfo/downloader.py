@@ -41,7 +41,7 @@ class Downloader:
         intermediate_outfile = outfile + ".bz2"
         if protocol == "https":
             if file_url is None:
-                file_url = self.get_latest_rib_file_url()
+                file_url = self.get_latest_rib_file_url_https()
             print("Downloading:", file_url)
             resp = urlopen(file_url)
             with open(intermediate_outfile, "wb") as f:
@@ -51,9 +51,9 @@ class Downloader:
         else:
             raise ValueError(f"unknown protocol {protocol!r}; expected 'https' or 'ftp'")
 
-        self.convert_file(intermediate_outfile, outfile)
+        self.convert_rib_to_dat_file(intermediate_outfile, outfile)
 
-    def get_latest_rib_file_url(self) -> str:
+    def get_latest_rib_file_url_https(self) -> str:
         # Get the latest. Archive entries are listed using UTC
         now = datetime.now(UTC)
         date_path = now.strftime("%Y") + "." + now.strftime("%m")
@@ -97,13 +97,13 @@ class Downloader:
         finally:
             ftp.quit()
 
-    def convert_file(self, in_file: str, out_file: str) -> None:
+    def convert_rib_to_dat_file(self, in_file: str, out_file: str) -> None:
         prefixes = mrt.parse_mrt_file(
             in_file, on_progress=lambda msg: print(msg, file=sys.stderr), skip_record_on_error=True
         )
-        mrt.dump_prefixes_to_file(prefixes, out_file)
+        mrt.write_prefixes_to_file(prefixes, out_file)
 
-    def download_asnames(self) -> str:
+    def fetch_asnames_as_json(self) -> str:
         http = urlopen(self.ASNAMES_URL)
         data = http.read()
         http.close()
@@ -111,9 +111,9 @@ class Downloader:
         # TODO: use another lib like requests or implement logic to detect encoding of the
         # http response. The site uses latin-1 now but that may not always be true in the future.
         text = data.decode("latin-1")
-        names = self.to_dict(text)
+        names = self.parse_asnames_html(text)
         return json.dumps(names)
 
-    def to_dict(self, html: str) -> dict[str, str]:
+    def parse_asnames_html(self, html: str) -> dict[str, str]:
         names = self.ASNAME_PAT.findall(html)
         return dict(names)

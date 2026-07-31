@@ -23,7 +23,7 @@ def home(tmp_path, monkeypatch):
 @pytest.fixture
 def cli_with_pickled_db(home):
     c = CLI()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     db = ASInfo(str(TEST_V4_DB_PATH))
     with open(c.default_pickle_file, "wb") as f:
         pickle.dump(db, f)
@@ -33,7 +33,7 @@ def cli_with_pickled_db(home):
 @pytest.fixture
 def cli_with_pickled_db_and_names(home, tmp_path):
     c = CLI()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     names_file = tmp_path / "asnames.json"
     names_file.write_text(json.dumps({"10": "EXAMPLE-ONE-NET", "20": "EXAMPLE-TWO-NET"}))
     db = ASInfo(str(TEST_V4_DB_PATH), as_names_file=str(names_file))
@@ -59,17 +59,17 @@ def test_default_paths(home):
     assert c.default_pickle_file == expected + "/asndb_pickle"
 
 
-def test_setup_local_dir_if_not_exist_creates_dir(home):
+def test_ensure_cache_dir_exists_creates_dir(home):
     c = CLI()
     assert not Path(c.default_path).exists()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     assert Path(c.default_path).is_dir()
 
 
-def test_setup_local_dir_if_not_exist_is_idempotent(home):
+def test_ensure_cache_dir_exists_is_idempotent(home):
     c = CLI()
-    c.setup_local_dir_if_not_exist()
-    c.setup_local_dir_if_not_exist()  # should not raise
+    c.ensure_cache_dir_exists()
+    c.ensure_cache_dir_exists()  # should not raise
     assert Path(c.default_path).is_dir()
 
 
@@ -98,11 +98,11 @@ def test_detect_term_type_as_substring_misclassifies_names(home):
     assert c.detect_term_type("fastly") == "asn"
 
 
-def test_process_no_args_prints_help(home, monkeypatch, capsys):
+def test_run_no_args_prints_help(home, monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["asinfo"])
     c = CLI()
     with pytest.raises(SystemExit):
-        c.process()  # --help exits after printing (argparse's own behavior)
+        c.run()  # --help exits after printing (argparse's own behavior)
     out = capsys.readouterr().out
     assert "asinfo COMMAND [OPTIONS]" in out
 
@@ -125,7 +125,7 @@ def test_argparse_wiring_lookup(home):
 
 def test_download_asnames_writes_file(home, monkeypatch):
     monkeypatch.setattr(
-        Downloader, "download_asnames", lambda self: json.dumps({"15169": "GOOGLE"})
+        Downloader, "fetch_asnames_as_json", lambda self: json.dumps({"15169": "GOOGLE"})
     )
     c = CLI()
     c.download(Namespace(type="asnames"))
@@ -139,7 +139,7 @@ def test_download_ribs_writes_pickle(home, monkeypatch):
 
     monkeypatch.setattr(Downloader, "download_latest_rib_file", fake_download_latest_rib_file)
     c = CLI()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     # download_ribs() unconditionally loads default_as_names_file - simulate
     # having already downloaded AS names (see the bug test below for what
     # happens without this).
@@ -164,7 +164,7 @@ def test_download_ribs_crashes_without_prior_asnames_download(home, monkeypatch)
 
     monkeypatch.setattr(Downloader, "download_latest_rib_file", fake_download_latest_rib_file)
     c = CLI()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     c.downloader = Downloader()
 
     with pytest.raises(FileNotFoundError):
@@ -175,7 +175,9 @@ def test_download_all_runs_asnames_before_ribs(home, monkeypatch):
     """`download all` must fetch asnames before ribs on a fresh cache dir -
     see the ordering fix in download()'s "all" case and the bug documented
     in test_download_ribs_crashes_without_prior_asnames_download."""
-    monkeypatch.setattr(Downloader, "download_asnames", lambda self: json.dumps({"1": "TEST-AS"}))
+    monkeypatch.setattr(
+        Downloader, "fetch_asnames_as_json", lambda self: json.dumps({"1": "TEST-AS"})
+    )
 
     def fake_download_latest_rib_file(self, file_url=None, outfile=None):
         Path(outfile).write_bytes(TEST_V4_DB_PATH.read_bytes())
@@ -241,7 +243,7 @@ def test_status_no_data_downloaded(home, capsys):
 
 def test_status_shows_age_after_download(home, capsys):
     c = CLI()
-    c.setup_local_dir_if_not_exist()
+    c.ensure_cache_dir_exists()
     Path(c.default_pickle_file).write_bytes(b"fake")
     Path(c.default_as_names_file).write_text("{}")
 
@@ -267,8 +269,8 @@ def test_version_flag(home, capsys):
     assert capsys.readouterr().out.strip() == f"asinfo {asinfo.__version__}"
 
 
-def test_main_invokes_process(monkeypatch):
+def test_main_invokes_run(monkeypatch):
     called = []
-    monkeypatch.setattr(CLI, "process", lambda self: called.append(True))
+    monkeypatch.setattr(CLI, "run", lambda self: called.append(True))
     main()
     assert called == [True]

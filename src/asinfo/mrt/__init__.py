@@ -4,7 +4,8 @@
 Public API:
     parse_mrt_file(mrt_file, on_progress=None, skip_record_on_error=False)
         -> {"prefix/len": origin_asn_or_set_of_asns}
-    dump_prefixes_to_file(prefixes, output_file_name, source_description="", debug_write_sets=False)
+    write_prefixes_to_file(prefixes, output_file_name, source_description="")
+    write_prefixes_to_debug_file(prefixes, output_file_name, source_description="")
     open_archive(path) -> an open bz2/gzip file object
 """
 
@@ -27,7 +28,8 @@ __all__ = [
     "is_asn_invalid",
     "open_archive",
     "parse_mrt_file",
-    "dump_prefixes_to_file",
+    "write_prefixes_to_file",
+    "write_prefixes_to_debug_file",
 ]
 
 ProgressCallback = Callable[[str], None]
@@ -130,13 +132,47 @@ def parse_mrt_file(
     return prefixes
 
 
-def dump_prefixes_to_file(
+def write_prefixes_to_file(
     prefixes: dict,
     output_file_name: str,
     source_description: str = "",
-    debug_write_sets: bool = False,
 ) -> None:
-    """Writes a {prefix: origin} mapping out in the IP-ASN32-DAT text format."""
+    """Writes a {prefix: origin} mapping out in the IP-ASN32-DAT text format, which seems to
+    be the most commonly used format by others.
+
+    Ambiguous (AS_SET-derived) origins are collapsed to a single arbitrary
+    member, since the format has no way to represent multiple ASNs for one
+    prefix - see `write_prefixes_to_debug_file` if you need to inspect the
+    full candidate set instead.
+    """
+    _write_prefixes(
+        prefixes, output_file_name, source_description, preserve_ambiguous_origins=False
+    )
+
+
+def write_prefixes_to_debug_file(
+    prefixes: dict,
+    output_file_name: str,
+    source_description: str = "",
+) -> None:
+    """Writes a {prefix: origin} mapping for inspection, preserving ambiguous
+    (AS_SET-derived) origins as their full candidate set instead of
+    collapsing them to one arbitrary member.
+
+    The result is NOT valid IP-ASN32-DAT format - a line for an ambiguous
+    prefix looks like "1.2.3.0/24\t{40179, 50923}", which `ASInfo` (and
+    anything else expecting one ASN per line) can't parse. Use
+    `write_prefixes_to_file` to produce a loadable database.
+    """
+    _write_prefixes(prefixes, output_file_name, source_description, preserve_ambiguous_origins=True)
+
+
+def _write_prefixes(
+    prefixes: dict,
+    output_file_name: str,
+    source_description: str,
+    preserve_ambiguous_origins: bool,
+) -> None:
     n_v6 = sum(1 for prefix in prefixes if ":" in prefix)
     n_v4 = len(prefixes) - n_v6
     with open(output_file_name, "w", encoding="ascii") as fh:
@@ -144,6 +180,6 @@ def dump_prefixes_to_file(
         fh.write(f"; Original source: {source_description}\n")
         fh.write(f"; Prefixes-v4   : {n_v4}\n; Prefixes-v6   : {n_v6}\n;\n")
         for prefix, origin in prefixes.items():
-            if isinstance(origin, set) and not debug_write_sets:
+            if isinstance(origin, set) and not preserve_ambiguous_origins:
                 origin = next(iter(origin))  # ambiguous aggregate - any member is a legal choice
             fh.write(f"{prefix}\t{origin}\n")

@@ -49,7 +49,7 @@ class FakeFTP:
         self.quit_called = True
 
 
-def test_get_latest_rib_file_url(monkeypatch):
+def test_get_latest_rib_file_url_https(monkeypatch):
     html = (
         '<a href="rib.20260101.0000.bz2">rib.20260101.0000.bz2</a>\n'
         '<a href="rib.20260101.0200.bz2">rib.20260101.0200.bz2</a>\n'
@@ -62,7 +62,7 @@ def test_get_latest_rib_file_url(monkeypatch):
 
     monkeypatch.setattr("asinfo.downloader.urlopen", fake_urlopen)
     d = Downloader()
-    url = d.get_latest_rib_file_url()
+    url = d.get_latest_rib_file_url_https()
 
     assert url.endswith("rib.20260101.0200.bz2")
     assert "archive.routeviews.org/bgpdata/" in seen_urls[0]
@@ -87,16 +87,16 @@ def test_download_latest_rib_file(monkeypatch, tmp_path):
     assert "38803" in text  # known ASN in this fixture (see tests/test_mrtx.py)
 
 
-def test_convert_file(tmp_path):
+def test_convert_rib_to_dat_file(tmp_path):
     outfile = str(tmp_path / "out.dat")
     d = Downloader()
-    d.convert_file(str(RIB_FIXTURE), outfile)
+    d.convert_rib_to_dat_file(str(RIB_FIXTURE), outfile)
 
     text = Path(outfile).read_text()
     assert "1.0.4.0/24\t38803" in text
 
 
-def test_download_asnames(monkeypatch):
+def test_fetch_asnames_as_json(monkeypatch):
     html = (
         '<a href="/cgi-bin/as-report?as=AS1&view=2.0">AS1  </a>LVLT-1, US\n'
         '<a href="/cgi-bin/as-report?as=AS15169&view=2.0">AS15169  </a>GOOGLE, US\n'
@@ -106,15 +106,15 @@ def test_download_asnames(monkeypatch):
     )
 
     d = Downloader()
-    result = json.loads(d.download_asnames())
+    result = json.loads(d.fetch_asnames_as_json())
 
     assert result == {"1": "LVLT-1, US", "15169": "GOOGLE, US"}
 
 
-def test_to_dict():
+def test_parse_asnames_html():
     html = '<a href="foo">AS15169 </a>GOOGLE, US\n<a href="bar">AS1 </a>LVLT-1, US\n'
     d = Downloader()
-    assert d.to_dict(html) == {"15169": "GOOGLE, US", "1": "LVLT-1, US"}
+    assert d.parse_asnames_html(html) == {"15169": "GOOGLE, US", "1": "LVLT-1, US"}
 
 
 def test_get_latest_rib_file_path_ftp(monkeypatch):

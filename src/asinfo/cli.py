@@ -77,19 +77,19 @@ class CLI:
 
         self.parser = parser
 
-    def process(self) -> None:
+    def run(self) -> None:
         # By default argparse quietly exits if no arguments supplied.  At least print the help...
         args = self.parser.parse_args(None if sys.argv[1:] else ["--help"])
         args.func(args)
 
-    def setup_local_dir_if_not_exist(self) -> None:
+    def ensure_cache_dir_exists(self) -> None:
         path = Path("~/.asinfo/cache").expanduser()
         if path.exists():
             return
         path.mkdir(parents=True, exist_ok=True)
 
     def download(self, args: Namespace) -> None:
-        self.setup_local_dir_if_not_exist()
+        self.ensure_cache_dir_exists()
         self.downloader = Downloader()
 
         match args.type:
@@ -108,7 +108,7 @@ class CLI:
 
     def download_asnames(self) -> None:
         print("Downloading latest AS names")
-        names = self.downloader.download_asnames()
+        names = self.downloader.fetch_asnames_as_json()
         fpath = self.default_as_names_file
         with open(fpath, "w", encoding="utf-8") as f:
             f.write(names)
@@ -194,7 +194,7 @@ class CLI:
 
 
 def main() -> None:
-    CLI().process()
+    CLI().run()
 
 
 if __name__ == "__main__":

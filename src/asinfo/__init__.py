@@ -45,10 +45,10 @@ class ASInfo:
             opener = gzip.open if db_file.endswith(".gz") else open
             with opener(db_file, "rt") as f:
                 for line in f:
-                    self.process_load_line(line)
+                    self._parse_and_index_line(line)
         elif db_string is not None:
             for line in db_string.splitlines():
-                self.process_load_line(line)
+                self._parse_and_index_line(line)
         else:
             raise ValueError("No data given: pass either db_file or db_string.")
 
@@ -58,7 +58,7 @@ class ASInfo:
         # before it can be pickled.
         self.records.freeze()
 
-    def process_load_line(self, line: str) -> None:
+    def _parse_and_index_line(self, line: str) -> None:
         line = line.strip()
         if not line or line[0] in ("#", ";"):
             return
