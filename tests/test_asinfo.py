@@ -50,6 +50,7 @@ def test_lookup_returns_expected_result(asndb_test):
     assert asn is None
     assert prefix is None
 
+
 def test_lookup_with_asnames():
     """AS Name lookup works."""
     db_with_names = ASInfo(str(V4_DB_PATH), as_names_file=str(AS_NAMES_FILE_PATH))
@@ -58,13 +59,14 @@ def test_lookup_with_asnames():
     assert "cloudflare" in name.lower()
     assert db_with_names.get_as_name(-1) is None
 
+
 def test_v6_lookup_returns_expected_result():
     """IPv6 addresses are looked up correctly."""
     db = ASInfo(str(V6_DB_PATH))
     known_ips = [
-        ("2408:897a::1", 4837),      # CHINA169-Backbone, AS4837
-        ("2a04:3542::1", 202053),    # UpCloud Ltd, AS202053
-        ("2a00:1e98::1", 34058),     # lifecell (mobile carrier), AS34058
+        ("2408:897a::1", 4837),  # CHINA169-Backbone, AS4837
+        ("2a04:3542::1", 202053),  # UpCloud Ltd, AS202053
+        ("2a00:1e98::1", 34058),  # lifecell (mobile carrier), AS34058
         ("2a03:2880:f003:c07:face:b00c::2", 32934),  # Facebook, AS32934
         ("2001:db8::1", None),  # RFC 3849 documentation prefix - never routed
     ]
@@ -72,11 +74,13 @@ def test_v6_lookup_returns_expected_result():
         asn, _prefix = db.lookup(ip)
         assert asn == known_as
 
+
 def test_invalid_address_raises_error(asndb):
     with pytest.raises(ValueError):
         asndb.lookup("1.1.680.1")
     with pytest.raises(ValueError):
         asndb.lookup("200001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF")
+
 
 def test_get_prefixes_for_multi_prefix_asn(asndb):
     """Correct prefixes are returned for a predetermined AS with 3 non-overlapping /16s."""
@@ -111,7 +115,9 @@ def test_get_prefixes_unknown_asn(asndb):
 
 
 def test_get_collapsed_prefixes_for_multi_prefix_asn(asndb):
-    prefixes1 = asndb.get_as_prefixes_collapsed(17435)  # 3 non-overlapping /16s, nothing to collapse
+    prefixes1 = asndb.get_as_prefixes_collapsed(
+        17435
+    )  # 3 non-overlapping /16s, nothing to collapse
     assert set(prefixes1) == {"58.28.0.0/16", "118.90.0.0/16", "182.154.0.0/16"}
 
 
@@ -152,9 +158,9 @@ def test_get_as_size_returns_expected_result(asndb):
     """AS size calculation correctness."""
     assert sum(2 ** (32 - int(px.split("/")[1])) for px in []) == 0  # empty prefix list
 
-    assert asndb.get_as_size(139190) == 65536   # single /16 prefix
-    assert asndb.get_as_size(17435) == 196608   # 3 non-overlapping /16s
-    assert asndb.get_as_size(12638) == 49152    # 1 /17 + 2 /19s, non-overlapping
+    assert asndb.get_as_size(139190) == 65536  # single /16 prefix
+    assert asndb.get_as_size(17435) == 196608  # 3 non-overlapping /16s
+    assert asndb.get_as_size(12638) == 49152  # 1 /17 + 2 /19s, non-overlapping
 
 
 def test_load_from_string():

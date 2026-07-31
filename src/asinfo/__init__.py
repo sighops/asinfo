@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import gzip
 import json
+from collections.abc import Iterator
 from importlib.metadata import PackageNotFoundError, version
-from ipaddress import collapse_addresses, ip_network
+from ipaddress import IPv4Network, IPv6Network, collapse_addresses
 
 import pytricia
 
@@ -14,7 +17,12 @@ except PackageNotFoundError:
 class ASInfo:
     """IPv4/IPv6 to ASN lookup table, built from a BGP MRT/RIB-derived IP-ASN database."""
 
-    def __init__(self, db_file=None, as_names_file=None, db_string=None):
+    def __init__(
+        self,
+        db_file: str | None = None,
+        as_names_file: str | None = None,
+        db_string: str | None = None,
+    ) -> None:
         """
         Loads an IP-ASN database and prepares it for lookups.
 
@@ -27,11 +35,11 @@ class ASInfo:
         `as_names_file`, if given, additionally loads AS names (ASN -> name)
         from a JSON file for use with get_as_name().
         """
-        self.records = pytricia.PyTricia()
-        self.as_prefixes = {}
+        self.records: pytricia.PyTricia = pytricia.PyTricia()
+        self.as_prefixes: dict[int, set[str]] = {}
         self.db_file = db_file
         self.asnames_file = as_names_file
-        self.asnames = None
+        self.asnames: dict[int, str] | None = None
 
         if db_file is not None:
             opener = gzip.open if db_file.endswith(".gz") else open
@@ -50,22 +58,23 @@ class ASInfo:
         # before it can be pickled.
         self.records.freeze()
 
-    def process_load_line(self, line):
+    def process_load_line(self, line: str) -> None:
         line = line.strip()
         if not line or line[0] in ("#", ";"):
             return
-        prefix, asn = line.split()
-        asn = int(asn)
+        prefix, asn_str = line.split()
+        asn = int(asn_str)
         self.records[prefix] = asn
         self.as_prefixes.setdefault(asn, set()).add(prefix)
 
-    def load_asnames(self):
+    def load_asnames(self) -> dict[int, str]:
         """Loads {ASN: name} from `self.asnames_file` (JSON, optionally gzip-compressed)."""
+        assert self.asnames_file is not None  # only called when as_names_file was given
         if self.asnames_file.endswith(".gz"):
             with gzip.open(self.asnames_file, "rt") as f:
                 names = json.load(f)
         else:
-            with open(self.asnames_file, "r", encoding="utf-8") as f:
+            with open(self.asnames_file, encoding="utf-8") as f:
                 names = json.load(f)
 
         try:
@@ -73,7 +82,7 @@ class ASInfo:
         except ValueError:
             raise ValueError("AS names file contains a non-numeric ASN") from None
 
-    def lookup(self, ip):
+    def lookup(self, ip: str) -> tuple[int, str] | tuple[None, None]:
         """
         Returns the AS number and best-matching prefix for the given IP address.
 
@@ -90,12 +99,12 @@ class ASInfo:
         except KeyError:
             return None, None
 
-    def get_as_prefixes(self, asn):
+    def get_as_prefixes(self, asn: int | str) -> set[str] | None:
         """Returns the set of prefixes originated by `asn` in this database,
         or None if the ASN isn't present."""
         return self.as_prefixes.get(int(asn))
 
-    def get_as_prefixes_collapsed(self, asn):
+    def get_as_prefixes_collapsed(self, asn: int | str) -> list[str] | None:
         """
         Returns the effective address space of the given ASN by removing all
         overlaps among its prefixes, or None if the ASN isn't present.
@@ -103,11 +112,11 @@ class ASInfo:
         prefixes = self.get_as_prefixes(asn)
         if not prefixes:
             return None
-        non_overlapping_4 = collapse_addresses([ip_network(p) for p in prefixes if ":" not in p])
-        non_overlapping_6 = collapse_addresses([ip_network(p) for p in prefixes if ":" in p])
+        non_overlapping_4 = collapse_addresses([IPv4Network(p) for p in prefixes if ":" not in p])
+        non_overlapping_6 = collapse_addresses([IPv6Network(p) for p in prefixes if ":" in p])
         return [p.compressed for p in non_overlapping_4] + [p.compressed for p in non_overlapping_6]
 
-    def _get_as_size(self, asn, bits, is_v6):
+    def _get_as_size(self, asn: int | str, bits: int, is_v6: bool) -> int:
         prefixes = self.get_as_prefixes_collapsed(asn)
         if not prefixes:
             return 0
@@ -117,15 +126,15 @@ class ASInfo:
             if (":" in prefix) == is_v6
         )
 
-    def get_as_size(self, asn):
+    def get_as_size(self, asn: int | str) -> int:
         """Returns the total count of unique IPv4 addresses routed by `asn`."""
         return self._get_as_size(asn, 32, is_v6=False)
 
-    def get_as_size_v6(self, asn):
+    def get_as_size_v6(self, asn: int | str) -> int:
         """Returns the total count of unique IPv6 addresses routed by `asn`."""
         return self._get_as_size(asn, 128, is_v6=True)
 
-    def get_as_name(self, asn):
+    def get_as_name(self, asn: int) -> str | None:
         """Returns the AS name for `asn`, or None if unknown.
 
         :raises RuntimeError: if this ASInfo was created without as_names_file.
@@ -134,7 +143,7 @@ class ASInfo:
             raise RuntimeError("AS names were not loaded (pass as_names_file to __init__)")
         return self.asnames.get(asn, None)
 
-    def find_asns_by_name(self, name_query):
+    def find_asns_by_name(self, name_query: str) -> list[tuple[int, str]]:
         """Returns [(asn, name), ...] for every AS name containing
         `name_query` (case-insensitive substring match).
 
@@ -145,9 +154,9 @@ class ASInfo:
         query = name_query.lower()
         return [(asn, name) for asn, name in self.asnames.items() if query in name.lower()]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ASInfo({self.db_file!r}, {self.asnames_file!r})"
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[tuple[str, int]]:
         for prefix in self.records:
             yield prefix, self.records[prefix]
