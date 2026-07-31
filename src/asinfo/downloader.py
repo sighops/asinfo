@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import re
 import sys
+import tempfile
 from datetime import UTC, datetime
 from ftplib import FTP
+from pathlib import Path
 from urllib.request import urlopen
 
-from asinfo import mrt
+from asinfo import ASInfo, mrt
 
 
 class Downloader:
@@ -117,3 +119,26 @@ class Downloader:
     def parse_asnames_html(self, html: str) -> dict[str, str]:
         names = self.ASNAME_PAT.findall(html)
         return dict(names)
+
+    def build_asinfo(self, *, protocol: str = "https", include_names: bool = True) -> ASInfo:
+        """Downloads the latest RIB (and, by default, AS names) and returns a
+        ready-to-use ASInfo instance in one call.
+
+        Uses a temporary directory for the intermediate download/conversion
+        files; nothing is left on disk once this returns. `protocol` is
+        passed through to `download_latest_rib_file()` ("https" or "ftp").
+        Set `include_names=False` to skip the AS-names fetch if you only
+        need IP/prefix lookups - the returned instance won't support
+        `get_as_name()`/`find_asns_by_name()` in that case.
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_file = str(Path(tmp_dir) / "asndb")
+            self.download_latest_rib_file(outfile=db_file, protocol=protocol)
+            db_string = Path(db_file).read_text(encoding="ascii")
+
+            as_names_file = None
+            if include_names:
+                as_names_file = str(Path(tmp_dir) / "asnames.json")
+                Path(as_names_file).write_text(self.fetch_asnames_as_json(), encoding="utf-8")
+
+            return ASInfo(db_string=db_string, as_names_file=as_names_file)
