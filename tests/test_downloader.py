@@ -42,7 +42,7 @@ class FakeFTP:
 
     def retrbinary(self, cmd, callback):
         assert cmd.startswith("RETR ")
-        self.retrieved_path = cmd[len("RETR "):]
+        self.retrieved_path = cmd[len("RETR ") :]
         callback(self.content)
 
     def quit(self):
@@ -70,7 +70,7 @@ def test_get_latest_rib_file_url(monkeypatch):
 
 def test_download_latest_rib_file_requires_outfile():
     d = Downloader()
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="no outfile specified"):
         d.download_latest_rib_file()
 
 
@@ -101,7 +101,9 @@ def test_download_asnames(monkeypatch):
         '<a href="/cgi-bin/as-report?as=AS1&view=2.0">AS1  </a>LVLT-1, US\n'
         '<a href="/cgi-bin/as-report?as=AS15169&view=2.0">AS15169  </a>GOOGLE, US\n'
     )
-    monkeypatch.setattr("asinfo.downloader.urlopen", lambda url: FakeResponse(html.encode("latin-1")))
+    monkeypatch.setattr(
+        "asinfo.downloader.urlopen", lambda url: FakeResponse(html.encode("latin-1"))
+    )
 
     d = Downloader()
     result = json.loads(d.download_asnames())
@@ -110,10 +112,7 @@ def test_download_asnames(monkeypatch):
 
 
 def test_to_dict():
-    html = (
-        '<a href="foo">AS15169 </a>GOOGLE, US\n'
-        '<a href="bar">AS1 </a>LVLT-1, US\n'
-    )
+    html = '<a href="foo">AS15169 </a>GOOGLE, US\n<a href="bar">AS1 </a>LVLT-1, US\n'
     d = Downloader()
     assert d.to_dict(html) == {"15169": "GOOGLE, US", "1": "LVLT-1, US"}
 
@@ -140,6 +139,7 @@ def test_get_latest_rib_file_path_ftp_no_files_raises(monkeypatch):
 
 def test_download_latest_rib_file_https_failure_is_not_caught(monkeypatch, tmp_path):
     """No automatic FTP fallback - an HTTPS failure propagates as-is."""
+
     def failing_urlopen(url):
         raise URLError("connection refused")
 
