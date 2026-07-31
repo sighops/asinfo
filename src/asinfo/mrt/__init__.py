@@ -11,13 +11,14 @@ Public API:
 from __future__ import annotations
 
 from bz2 import BZ2File
+from collections.abc import Callable
 from gzip import GzipFile
 from time import perf_counter
-from typing import BinaryIO, Callable, Union
+from typing import BinaryIO, cast
 
 from .bgp_attrs import extract_origin_as
-from .invalid import is_asn_invalid
 from .headers import MrtType
+from .invalid import is_asn_invalid
 from .reader import MrtFormatError
 from .tabledump import RawTableEntry, SkippedRecord, iter_records
 
@@ -40,9 +41,11 @@ def open_archive(path: str) -> BinaryIO:
     with open(path, "rb") as fh:
         magic = fh.read(max(len(_GZIP_MAGIC), len(_BZ2_MAGIC)))
     if magic.startswith(_BZ2_MAGIC):
-        return BZ2File(path, "rb")
+        # BZ2File/GzipFile are structurally BinaryIO-compatible (read/seek/etc in
+        # binary mode) but typeshed doesn't declare them as such nominally.
+        return cast(BinaryIO, BZ2File(path, "rb"))
     if magic.startswith(_GZIP_MAGIC):
-        return GzipFile(path, "rb")
+        return cast(BinaryIO, GzipFile(path, "rb"))
     raise MrtFormatError(f"cannot determine archive type of {path!r} (not bz2 or gzip)")
 
 
@@ -52,7 +55,7 @@ def parse_mrt_file(
     on_progress: ProgressCallback | None = None,
     skip_record_on_error: bool = False,
     check_all_peers: bool = False,
-) -> dict[str, Union[int, set]]:
+) -> dict[str, int | set]:
     """Parses an MRT/RIB BGP table dump into {"prefix/len": origin_asn_or_set}.
 
     `mrt_file` may be a path to a .bz2/.gz archive, or an already-open binary

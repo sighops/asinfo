@@ -12,9 +12,10 @@ this module only knows MRT/RIB framing, not BGP attribute internals.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from ipaddress import IPv4Network, IPv6Network
-from typing import BinaryIO, Iterator, Union
+from typing import BinaryIO
 
 from .headers import MrtHeader, MrtType, TableDumpSubtype, TableDumpV2Subtype, read_header
 from .reader import ByteReader, MrtFormatError
@@ -34,7 +35,7 @@ class SkippedRecord:
     reason: str
 
 
-Record = Union[RawTableEntry, SkippedRecord]
+Record = RawTableEntry | SkippedRecord
 
 _MULTICAST_AND_GENERIC_SUBTYPES = {
     TableDumpV2Subtype.RIB_IPV4_MULTICAST,
@@ -74,8 +75,7 @@ def iter_records(stream: BinaryIO, *, check_all_peers: bool = False) -> Iterator
             return
         if len(raw_body) < header.length:
             raise MrtFormatError(
-                f"truncated MRT record body: got {len(raw_body)} of "
-                f"{header.length} declared bytes"
+                f"truncated MRT record body: got {len(raw_body)} of {header.length} declared bytes"
             )
         body = ByteReader(raw_body)
 
@@ -128,7 +128,10 @@ def _iter_table_dump_v2(
         yield SkippedRecord(header, f"TABLE_DUMP_V2 subtype {header.subtype} not supported")
         return
 
-    if header.subtype not in (TableDumpV2Subtype.RIB_IPV4_UNICAST, TableDumpV2Subtype.RIB_IPV6_UNICAST):
+    if header.subtype not in (
+        TableDumpV2Subtype.RIB_IPV4_UNICAST,
+        TableDumpV2Subtype.RIB_IPV6_UNICAST,
+    ):
         yield SkippedRecord(header, f"unknown TABLE_DUMP_V2 subtype {header.subtype}")
         return
 

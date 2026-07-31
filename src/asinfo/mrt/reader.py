@@ -33,7 +33,7 @@ class ByteReader:
             raise MrtFormatError(
                 f"unexpected end of data: wanted {n} byte(s), {len(self)} remaining"
             )
-        chunk = self._data[self._offset:self._offset + n]
+        chunk = self._data[self._offset : self._offset + n]
         self._offset += n
         return chunk
 

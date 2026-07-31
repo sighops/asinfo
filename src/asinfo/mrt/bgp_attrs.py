@@ -46,8 +46,7 @@ def _parse_path_segments(data: bytes, asn_width: int) -> list[PathSegment]:
         seg_type = reader.read_u8()
         count = reader.read_u8()
         asns = tuple(
-            reader.read_u32() if asn_width == 4 else reader.read_u16()
-            for _ in range(count)
+            reader.read_u32() if asn_width == 4 else reader.read_u16() for _ in range(count)
         )
         segments.append(PathSegment(seg_type, asns))
     return segments

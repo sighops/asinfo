@@ -52,8 +52,6 @@ def read_header(stream: BinaryIO) -> MrtHeader | None:
     if not raw:
         return None
     if len(raw) < HEADER_LEN:
-        raise MrtFormatError(
-            f"truncated MRT header: got {len(raw)} of {HEADER_LEN} bytes"
-        )
+        raise MrtFormatError(f"truncated MRT header: got {len(raw)} of {HEADER_LEN} bytes")
     timestamp, type_, subtype, length = _HEADER_STRUCT.unpack(raw)
     return MrtHeader(timestamp, type_, subtype, length)
