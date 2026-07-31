@@ -3,7 +3,7 @@ name = "asinfo"
 version = "0.9.0"
 description = "Tools for looking up ASN from IP and other AS information such as name, announced prefixes, etc."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [
@@ -16,8 +16,6 @@ classifiers = [
     "Intended Audience :: Telecommunications Industry",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -39,8 +37,27 @@ asinfo = "asinfo.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
 ]
 
 [build-system]
 requires = ["uv_build >= 0.8.17, <0.9.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "N", "B", "I"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["asinfo"]
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "pytricia"
+ignore_missing_imports = true
